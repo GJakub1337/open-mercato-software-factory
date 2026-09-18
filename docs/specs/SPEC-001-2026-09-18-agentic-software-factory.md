@@ -12,8 +12,9 @@ event and manual triggers, propose-only agents, a nine-gate disposition policy, 
 pending decisions, traces with cost, and a corrections-to-evals flywheel. This spec builds the
 **Agentic Software Factory** on top of it, inside a standalone Open Mercato 0.8.0 app:
 
-- a thin **`tasks` module** as the intake and the board ("everything is a task"): assigning a
-  task to an agent, or a Sentry/GitHub webhook creating one, emits `tasks.task.assigned`;
+- a thin **`tasks` module** as the intake and the board ("everything is a task"), specified in
+  [SPEC-002](./SPEC-002-2026-09-18-tasks-module.md): delegating a task to an agent (a Sentry or
+  GitHub webhook later does the same) emits `tasks.task.delegated`;
 - one orchestrator process triggered by that event: research, then sizing, then the WSFF design
   phases for large work (product review, architecture, program design, vertical slices), with
   a human gate in the Caseload before anything is built;
@@ -52,21 +53,21 @@ the change class requires (an engineer, a lawyer, both, or none by policy).
 
 ## User Stories
 
-- **Product owner** assigns a task on the board to the factory agent → gets a design to approve
-  in the Caseload, then a PR link on the task. Empty board shows how to create a task; a user
-  without the assign feature cannot assign to an agent; a failed run leaves the task `failed`
-  with the reason.
-- **On-call engineer** gets a task created automatically from a Sentry alert, already assigned to
-  the agent → a PR with a fix and evidence, or a `rejected` task with the sizer's reason. Alerts
+- **Product owner** delegates a task on the board to the factory agent, staying its assignee →
+  gets a design to approve in the Caseload, then a PR link on the task. Empty board shows how to
+  create a task; a user without the delegate feature cannot delegate to an agent; a failed run
+  leaves the task `failed` with the reason.
+- **On-call engineer** gets a task created automatically from a Sentry alert, already delegated to
+  the agent (post-MVP intake, SPEC-002) → a PR with a fix and evidence, or a `rejected` task with the sizer's reason. Alerts
   below the configured event count create nothing.
 - **Reviewer** opens the PR in GitHub, never in Open Mercato → CI result, evidence and the
   reviewer agent's findings are on the PR; follow-up findings appear as child tasks on the board,
-  unassigned.
-- **Team lead** opens the board → sees every task by status and assignee kind, with the process
+  with the parent's assignee and no delegate.
+- **Team lead** opens the board → sees every task by status, assignee and delegate, with the process
   instance, cost so far and the pending decision linked.
 - **Business owner** (e.g. a manufacturer running sales, catalog and staff in Open Mercato, with
   the company website's repo connected as a project) adds a product in the catalog → a task
-  "publish a product page" appears on the board, already assigned to the agent → a preview link
+  "publish a product page" appears on the board, already delegated to the agent → a preview link
   to approve, then the page live. They never read a diff; a change that needs an engineer or a
   lawyer waits for them, visibly, on the task.
 - **Legal reviewer** gets a Caseload item only when a change touches legal text (terms, privacy
@@ -106,52 +107,39 @@ Two facts shape the design and are easy to get wrong:
 
 ### The tasks module: intake and board
 
-Everything is a task. `tasks` is an ordinary app module (`apps/mercato/src/modules/tasks`) that
-owns one entity, one board page, a few commands and the inbound hooks. It is where work enters
-and where humans watch the fleet; it is not a project-management tool.
+Specified in [SPEC-002](./SPEC-002-2026-09-18-tasks-module.md). What this spec relies on:
 
-- A task has a title, body, links, a `projectKey` (which target repo and credential bundle), a
-  `source` (`manual | sentry | github | mcp | event | followup`), an optional parent, a status, and one
-  assignee. The assignee is always an `auth.User` id: a human, or an agent principal (a
-  non-interactive user of kind agent, provisioned once per org with
-  `agentPrincipalService.provision({ agentDefinitionId: 'factory' })` and shown in the picker as
-  "Factory agent").
-- Assigning to a human is board-only. Assigning to an agent emits
-  `tasks.task.assigned { taskId, assignmentId, assigneeKind: 'agent', agentId, source, projectKey, assignedBy, title }`,
-  where `agentId` is the agent definition id read from the principal, not the user id. The emit
-  carries `tenantId` and `organizationId` in the emit **options** as well as the payload, and is
-  persistent. Hook-created tasks are created already assigned to the factory agent and emit the
-  same event: one event, one start path, whatever the source. Open Mercato's own domain events
-  (e.g. `catalog.product.created`) enter the same way: a `tasks` subscriber, configured per
-  project with the event and a task template, creates the task with `source: event`.
-- The process writes back only through the module's **workflow-safe commands**:
-  `tasks.task.set_status`, `tasks.task.link` (instance, Caseload item, PR, artifact) and
-  `tasks.task.create_followup`, run by `UPDATE_ENTITY` steps. They are declared with
-  `registerWorkflowSafeCommands` in the module's `workflows.ts`, which also puts them in action
-  agents' vocabulary, and each must be **enabled per tenant** (off by default; the module seed
-  enables them). Each is idempotent on (taskId, processInstanceId, stepId), because activities
-  retry and `UPDATE_ENTITY` has no idempotency key; each validates the transition, records the
-  acting principal and the initiator, and is audited and undoable like any Open Mercato command.
-  The workflow never writes the table directly.
-- Un-assigning before the sizer has decided cancels the instance; after that the decision sits
-  in the Caseload and the human disposes of it there.
-- **Follow-ups are created unassigned.** Remaining slices and review findings become child tasks
-  that a human assigns to continue. This keeps the factory from feeding itself: only a human
-  assignment or an external alert starts work.
+- A task has a human **assignee** (accountable) and an optional agent **delegate** (the agent
+  principal's `auth.User`, `kind='agent'`, provisioned once per org with
+  `agentPrincipalService.provision({ agentDefinitionId: 'factory' })` and shown as "Factory
+  agent"). Tasks belong to a project whose key is the `projectKey` and prefixes a frozen
+  reference (`WEB-12`).
+- Delegating emits `tasks.task.delegated { taskId, reference, delegationId, delegateUserId,
+  agentId, assigneeUserId, delegatedBy, projectKey, source, title }`, persistent, with scope in
+  the emit **options** as well as the payload. `agentId` is the agent definition id read from
+  the principal. It is the only start path; later intake (Sentry, GitHub, MCP, domain events)
+  creates tasks already delegated and emits the same event.
+- The process writes back only through the module's **workflow-safe commands**
+  `tasks.task.set_status`, `tasks.task.link` and `tasks.task.create_followup`, run by
+  `UPDATE_ENTITY` steps, declared with `registerWorkflowSafeCommands` in `workflows.ts` and
+  **enabled per tenant** by the module seed (off by default). Each is idempotent on (taskId,
+  processInstanceId, stepId), because activities retry and `UPDATE_ENTITY` has no idempotency
+  key. The workflow never writes the table directly.
+- While a task has a delegate, only the process writes its status. Un-delegating before the
+  sizer has decided emits `tasks.task.undelegated` and cancels the instance; after that the
+  decision sits in the Caseload and the human disposes of it there.
+- **Follow-ups keep the parent's assignee and get no delegate.** Only a human delegation or an
+  external alert starts work, so the factory cannot feed itself.
 
 Status lifecycle (close results `done | rejected | failed`, SuperPlane's vocabulary):
 
 ```
-open ──assign agent──▶ queued ──sized──▶ in_design ──approved──▶ in_progress ──PR open──▶ in_review ──PR merged──▶ done
-  │                       │                  │                        │
-  └─ assign human         └─ sizer: reject ──┴─ human: reject ──▶ rejected
-     (board only)                                                 └─ run failed / timeout ──▶ failed
+open ──delegate──▶ queued ──sized──▶ in_design ──approved──▶ in_progress ──PR open──▶ in_review ──PR merged──▶ done
+  ▲                  │                  │                        │
+  └── un-delegate ───┘                  │                        │
+         (before sizing)  sizer: reject ┴─ human: reject ──▶ rejected
+                                                          └─ run failed / timeout ──▶ failed
 ```
-
-The board is one backend page: columns per status, filters by assignee kind, source and project;
-each card links the process instance, the pending Caseload decision, the PR, and cost so far from
-the traces. No goals, KPIs, sprints, estimates or dependency graphs: the orchestrator's outcomes
-per process and trace cost are the metrics.
 
 ### The process
 
@@ -160,10 +148,10 @@ workflow's execution principal (see *Starting and seeding*); every task write is
 `UPDATE_ENTITY` on a `tasks.task.*` command.
 
 ```
-tasks.task.assigned (assigneeKind = agent)
-  sources: board assignment · Sentry hook · GitHub hook (PR opened, author ≠ bot) · factory_send_task MCP
+tasks.task.delegated
+  sources: board delegation (MVP) · later: Sentry hook · GitHub hook (PR opened, author ≠ bot) · factory_send_task MCP
   └─ tasks subscriber → agent_orchestrator.processes.startExecution
-        idempotencyKey task:{taskId}:{assignmentId} · input { taskId, assignmentId, projectKey, title }
+        idempotencyKey task:{taskId}:{delegationId} · input { taskId, delegationId, projectKey, title }
       ↓
 START         (definition declares only a `manual` trigger)
 AUTOMATED     set_status → queued; link → workflow instance
@@ -192,7 +180,7 @@ INVOKE_AGENT  factory.slicer           proposal: ONE option carrying the ordered
 INVOKE_AGENT  factory.reviewer         proposal: approve | request_changes { findings[] }
       ↓ approved
 AUTOMATED     CALL_WEBHOOK  POST {RUNNER_URL}/review-comment      (posts findings on the PR)
-AUTOMATED     create_followup  (remaining slices, findings marked follow-up; unassigned)
+AUTOMATED     create_followup  (remaining slices, findings marked follow-up; parent's assignee, no delegate)
 AUTOMATED     set_status → in_review   (done when the GitHub hook sees the PR merged)
 AUTOMATED     factory.review_route  → reviewers = f(change class, touched paths, risk)   (see below)
 PARALLEL_FORK ├─ [developer] WAIT_FOR_SIGNAL factory.pr.approved   (GitHub review, from the hook)
@@ -205,10 +193,10 @@ milestones:   researched · sized · design_approved · pr_open · reviewed   (t
 
 How each piece works in 0.8.0, and why it is shaped this way:
 
-- **Start.** Our own persistent subscriber on `tasks.task.assigned` returns unless
-  `assigneeKind === 'agent'`, looks up `factory.deliver` and calls
-  `agent_orchestrator.processes.startExecution` with `idempotencyKey: task:{taskId}:{assignmentId}`,
-  `sourceEntityType: 'tasks:task'` and `triggeredBy: { kind: 'manual', ref: assignedBy }`. A process
+- **Start.** Our own persistent subscriber on `tasks.task.delegated` returns unless `agentId`
+  is `factory`, looks up `factory.deliver` and calls
+  `agent_orchestrator.processes.startExecution` with `idempotencyKey: task:{taskId}:{delegationId}`,
+  `sourceEntityType: 'tasks:task'` and `triggeredBy: { kind: 'manual', ref: delegatedBy }`. A process
   `event` trigger cannot carry an idempotency key, and its `.strict()` config schema silently drops
   the trigger if one is added, so the definition declares only the `manual` trigger that
   `startExecution` requires. Never declare both, or every assignment starts two instances.
@@ -257,12 +245,12 @@ for new databases; existing ones run `yarn mercato seed:defaults --module tasks`
 
 | Scenario | Task comes from | Path through the process | Runner |
 |---|---|---|---|
-| Bug from alert | Sentry hook creates a task assigned to the agent | research → sizer: single_shot, auto-approved if `risk: low` → slicer (one slice) → run → PR → reviewer | yes |
+| Bug from alert | Sentry hook creates a task delegated to the agent | research → sizer: single_shot, auto-approved if `risk: low` → slicer (one slice) → run → PR → reviewer | yes |
 | Feature from ticket | a human assigns a board task to the agent | research → sizer: large → three design gates → slicer → run one slice → PR → follow-ups for the rest | yes |
 | Code review | GitHub hook creates a review task (PR opened, author ≠ bot) | research → sizer: `review_only` → reviewer → findings posted | no |
 | Non-code task | a human assigns e.g. "summarise last week's failed syncs" | research → sizer: `non_code` → artifact or command proposal → Caseload → effector | no |
 | Project status update | schedule, weekly | separate process `factory.status`: research agent → artifact → USER_TASK → `CALL_WEBHOOK` to the team chat | no |
-| Business data → website | `catalog.product.created` in Open Mercato; a `tasks` subscriber creates a task (`source: event`) assigned to the agent | research (product record, site repo) → sizer: single_shot → run → PR with preview → review route (usually waiver: new product page) → merged | yes |
+| Business data → website | `catalog.product.created` in Open Mercato; a `tasks` subscriber creates a task (`source: event`) delegated to the agent | research (product record, site repo) → sizer: single_shot → run → PR with preview → review route (usually waiver: new product page) → merged | yes |
 
 The status process is deliberately separate: it proves the schedule trigger and the artifact path
 with zero runner dependency, so it is the fallback demo and the first thing a non-technical
@@ -410,7 +398,8 @@ monitoring and infra rows are wired on a real target afterwards.
 Three things, kept apart. The orchestrator already separates the first two: the invoker is
 `ProcessInstance.triggeredBy`, provenance and never an ACL identity; the execution identity is
 the workflow's `grantedFeatures` and an agent principal (unification spec §2). The task records
-both: `assignedBy` is the initiator, the agent assignee is the actor.
+both: `delegatedBy` is the initiator, the agent delegate is the actor, and the human assignee stays
+accountable.
 
 | | What it answers | Who or what |
 |---|---|---|
@@ -773,27 +762,13 @@ Every other screen is the orchestrator's own (process instances, Caseload, trace
 
 ## Data Models
 
-One new entity, in the `tasks` module. Processes, instances, runs, proposals, user tasks, traces,
-corrections and eval cases are the orchestrator's own. The runner persists nothing.
-
-`tasks_task` (tenant- and organization-scoped, standard audit columns):
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | uuid | |
-| `title`, `body` | text | body is untrusted input to prompts |
-| `project_key` | text | selects target repo, base branch and credential bundle |
-| `source` | enum | `manual \| sentry \| github \| mcp \| event \| followup` |
-| `source_ref` | text, nullable | e.g. `sentry:{issueId}`, `pr:{repo}#{number}`; unique per tenant with `source` for dedup |
-| `parent_id` | uuid, nullable | follow-ups point at the task that produced them |
-| `status` | enum | `open \| queued \| in_design \| in_progress \| in_review \| done \| rejected \| failed` |
-| `assignee_kind` | enum, nullable | `user \| agent`; the board filters on it |
-| `assignee_id` | uuid, nullable | an `auth.User` id for both kinds: a human, or the org's agent principal. The agent definition id is not stored; it travels in the event as `agentId`, resolved from the principal |
-| `assignment_id` | uuid, nullable | new per assignment; part of the idempotency key |
-| `assigned_by` | uuid, nullable | the initiator |
-| `process_instance_id` | uuid, nullable | set by `tasks.task.link` |
-| `links` | jsonb | PR, Caseload item, artifacts |
-| `close_reason` | text, nullable | required for `rejected` and `failed` |
+The `tasks` module's entities (`tasks_project`, `tasks_task`, `tasks_comment`) are specified in
+[SPEC-002](./SPEC-002-2026-09-18-tasks-module.md#data-models). Processes, instances, runs,
+proposals, user tasks, traces, corrections and eval cases are the orchestrator's own. The runner
+persists nothing. What this spec reads from a task: `reference`, `project` key (selects target
+repo, base branch and credential bundle), `source` + `source_ref` (intake dedup), `parent_id`,
+`status`, `assignee_user_id`, `delegate_user_id`, `delegation_id`, `delegated_by`,
+`process_instance_id`, `links`, `close_reason`.
 
 Enablement is configuration: `OM_ENABLE_ENTERPRISE_MODULES=true` and
 `OM_ENABLE_ENTERPRISE_MODULES_AGENTS=true`, then `yarn generate`, `yarn db:migrate`,
@@ -807,24 +782,21 @@ ciphertext.
 
 Ours, in the `tasks` module:
 
-- Task CRUD and the board: standard module API under `/api/tasks/...`, ACL features
-  `tasks.view`, `tasks.manage`, `tasks.assign_agent`, plus `tasks.process`, held only by the
-  workflow's execution principal through `grantedFeatures`.
-- Workflow-safe commands, `requiredFeatures: ['tasks.process']`:
-  `tasks.task.set_status { taskId, status, reason?, processInstanceId, stepId }`,
-  `tasks.task.link { taskId, kind, ref, processInstanceId, stepId }`,
-  `tasks.task.create_followup { parentId, title, body, projectKey, processInstanceId, stepId }`.
-  Idempotent on (taskId, processInstanceId, stepId); reject illegal transitions.
-- Events: `tasks.task.created`, `tasks.task.assigned { taskId, assignmentId, assigneeKind,
-  agentId?, source, projectKey, assignedBy, title }` (persistent, scope in the emit options),
-  `tasks.task.unassigned`, `tasks.task.status_changed`.
-- Subscriber `start-factory` on `tasks.task.assigned`: starts `factory.deliver` through
-  `startExecution` with the idempotency key (see *The process*).
+- Task, project and comment CRUD, delegation, the board, events and the three workflow-safe
+  commands (`tasks.task.set_status`, `tasks.task.link`, `tasks.task.create_followup`,
+  `requiredFeatures: ['tasks.process']`, idempotent on (taskId, processInstanceId, stepId)):
+  see [SPEC-002](./SPEC-002-2026-09-18-tasks-module.md#api-contracts). ACL features `tasks.view`,
+  `tasks.manage`, `tasks.delegate`, `tasks.projects.manage`, plus `tasks.process`, held only by
+  the workflow's execution principal through `grantedFeatures`.
+- Subscriber `start-factory` on `tasks.task.delegated`: starts `factory.deliver` through
+  `startExecution` with the idempotency key (see *The process*); a subscriber on
+  `tasks.task.undelegated` cancels the instance.
 - `POST /api/tasks/hooks/sentry`: Sentry issue-alert webhook, HMAC verified with the Sentry client
-  secret; creates (or dedups on `source_ref`) a task assigned to the factory agent. Drops anything
+  secret; creates (or dedups on `source_ref`) a task delegated to the factory agent, with the project's
+  default assignee. Drops anything
   below the configured event count.
 - `POST /api/tasks/hooks/github`: signature verified. `pull_request.opened` creates a review task
-  assigned to the factory agent and **drops PRs authored by the bot** (loop guard).
+  delegated to the factory agent and **drops PRs authored by the bot** (loop guard).
   `check_suite.completed` and `workflow_run.completed` on a `factory/<runId>` branch resolve the
   task from the branch name, and its linked workflow instance, and send the signal
   `factory.checks.settled { sha,
@@ -834,7 +806,7 @@ Ours, in the `tasks` module:
 - MCP tool `factory_send_task { projectKey, title, body, links[] }`: the seam between an
   interactive coding session and the factory. A research or brainstorm session ends by handing
   its result to the factory in one call instead of a human copying it into a ticket (Warp's
-  `send_task`). It creates a task with `source: mcp`, assigned to the factory agent, with the
+  `send_task`). It creates a task with `source: mcp`, delegated to the factory agent, with the
   session's user as initiator.
 
 Ours, on the runner: `POST /runs` and `POST /review-comment` as above, bearer-authenticated with a
@@ -857,11 +829,10 @@ Ordered for the hackathon; each step is worth having if the next one never lands
    GitHub App, install it on a throwaway target repo, keep its private key on the runner host
    only. One LLM provider key. In parallel: the `tasks` entity and events, the OUTCOME schemas and
    WSFF templates (they need no running app), and the runner container skeleton.
-2. **Saturday morning: the minimal chain.** `tasks.task.assigned` → `factory.deliver` → queued
+2. **Saturday morning: the minimal chain.** `tasks.task.delegated` → `factory.deliver` → queued
    and linked → `factory.sizer` → Caseload approve → in_progress → stub runner → signal →
    in_review. Nothing real inside, everything wired.
-   - Module files in `tasks`: `acl.ts` (`tasks.view`, `tasks.manage`, `tasks.assign_agent`,
-     `tasks.process`); `commands/` for `set_status` and `link`, idempotent on (taskId,
+   - Module files in `tasks`: `acl.ts` (per SPEC-002); `commands/` for `set_status` and `link`, idempotent on (taskId,
      processInstanceId, stepId); `events.ts`; `workflows.ts` with `registerWorkflowSafeCommands`;
      `subscribers/start-factory.ts`; `ai-agents.ts` plus `data/validators.ts` for the one-option
      sizer; `workflows/factory-deliver.json`; a dev-only, feature-gated
@@ -927,8 +898,8 @@ side without framing it as a race (SuperPlane's velocity tab), goes on the board
    the client runs. Warp Factories, Stripe and this spec converge on one shape; the choice here is
    a control plane the client already owns rather than a vendor's.
 2. **Everything is a task; the board stays thin.** A `tasks` module is the single intake: human
-   assignment, alerts, PR hooks and the MCP seam all become a task assigned to an agent, and one
-   event triggers the process. Status changes only through workflow-safe commands. No goals, KPI
+   delegation, alerts, PR hooks and the MCP seam all become a task delegated to an agent while a
+   human stays assignee, and one event triggers the process. Status changes only through workflow-safe commands. No goals, KPI
    or planning layer: that is a crowded horizontal category and the orchestrator already provides
    decisions and metrics.
 3. **Route by size; design gates only where a plan line is worth more than a diff line.**
@@ -950,11 +921,11 @@ side without framing it as a race (SuperPlane's velocity tab), goes on the board
    protection rather than observed CI, the bot never arms or re-arms automerge, and a human hold on
    a PR is terminal. The review waiver (see *Who reviews*) is that policy: a project-listed change
    class, required checks green, merged by a merge identity separate from the coding bot, never
-   on the agent's say-so. Follow-ups are created unassigned, so the factory never feeds itself.
+   on the agent's say-so. Follow-ups get no delegate, so the factory never feeds itself.
 7. **Portable from the first commit.** Local modules with `agents/<name>/AGENT.md` plus its
    `skills/`, `workflows/`, `runners/<name>.yaml` (image, setup commands, instance shape) and
    `api/`; the same file shapes Warp and SuperPlane consume, so a port is a directory move.
-8. **Author is never reviewer.** The bot cannot approve its own PR and the person who assigned
+8. **Author is never reviewer.** The bot cannot approve its own PR and the person who delegated
    the task cannot be its only approver (Copilot's rule). Branch protection enforces it; the
    factory does not rely on prompts.
 9. **Machine identity per client, capability per run.** Initiator, actor and capability are three
@@ -1022,3 +993,4 @@ side without framing it as a race (SuperPlane's velocity tab), goes on the board
 | 2026-09-18 | Hookup mechanics verified against 0.8.0 packages; process wiring, trigger, signal and seeding corrected. |
 | 2026-09-18 | Business-owner persona and business-data scenario; review routing by change class (developer, legal, waiver) with per-run previews. |
 | 2026-09-18 | Linked the orchestrator architecture brief (`docs/agent-orchestrator.md`). |
+| 2026-09-18 | `tasks` module moved to SPEC-002: human assignee plus agent delegate, trigger renamed to `tasks.task.delegated`, projects as records. |

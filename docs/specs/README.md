@@ -13,6 +13,7 @@ API Contracts, Implementation Approach, Key Design Decisions, Open Questions, Ch
 | SPEC | Date | Title | Status | Description |
 |------|------|-------|--------|-------------|
 | [001](./SPEC-001-2026-09-18-agentic-software-factory.md) | 2026-09-18 | Agentic Software Factory on the Open Mercato Agent Orchestrator | Draft | A `tasks` module as intake and board; assigning a task to an agent triggers one orchestrator process (research → size → WSFF design gates in the Caseload → slices → coding runner or another effector → review → follow-up tasks); stateless, replaceable runner opening one PR per slice as a bot with one bounded CI fix round |
+| [002](./SPEC-002-2026-09-18-tasks-module.md) | 2026-09-18 | Tasks module: board, projects and agent delegation | Draft | The factory's intake and board: tasks in projects with frozen references (`WEB-12`), a human assignee plus an agent delegate whose setting emits `tasks.task.delegated`, a fixed process-owned status lifecycle, run state derived from the orchestrator, plain comments; manual triggers only in the MVP |
 
 Statuses: `Draft` → `Approved` → `Implemented` (or `Rejected` / `Superseded by SPEC-NNN`).
 
