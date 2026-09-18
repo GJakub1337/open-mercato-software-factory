@@ -66,31 +66,32 @@ human is in the loop, the product owner at the design gate and an engineer at co
 
 ## Proposed Solution
 
-### What the orchestrator gives us, verified against upstream `develop` at `ab4fc81f82`
+### What the orchestrator gives us, verified against the published 0.8.0 packages
 
 | Need | Orchestrator primitive | Where |
 |---|---|---|
-| Initiation | `ProcessDefinition.triggers`: `schedule`, `event { eventPattern, config }`, `manual { requireFeatures }`; wildcard subscriber with jsonb-GIN candidate probe | `lib/tasks/triggers.ts`, `subscribers/process-event-trigger.ts` |
-| Dedup | idempotency key claimed on `ProcessInstance` before the workflow exists, partial-unique on (definition, key) | unification spec §5 |
+| Initiation | `ProcessDefinition.triggers`: `schedule`, `event { eventPattern, config }`, `manual { requireFeatures }`; wildcard subscriber with jsonb-GIN candidate probe. We use only `manual`, started by our own subscriber (see *The process*) | `lib/tasks/triggers.ts`, `subscribers/process-event-trigger.ts` |
+| Dedup | idempotency key claimed on `ProcessInstance` before the workflow exists, partial-unique on (definition, key); passed to `agent_orchestrator.processes.startExecution`, not available on event triggers | `commands/processes.ts:114-153` |
 | Bot identity | agent principals: a non-interactive `auth.User` of kind agent plus a scoped role; the runner callback uses an API key on such a principal | `auth.md`, `core/api_keys` |
 | Human gate | `USER_TASK` step with a `formSchema` (core workflows); proposal disposition with mandatory reason on edit or reject | `refund-triage-workflow.json`, Caseload |
 | Merge policy | `evaluateAutoApproval`: tenant switch, guardrails, trace completeness, **per-action risk ceiling**, then confidence, then near-tie | `lib/disposition/autoApprovalPolicy.ts` |
 | Fleet view | process instance list, Caseload, run traces with `cost`, `latency`, `step_count` scorers | cockpit UI |
 | Flywheel | edit or reject with reason drafts an eval case; `yarn mercato agent_orchestrator eval --gate` exits non-zero on regression | evals §8 |
-| Runner call and return | `CALL_WEBHOOK` activity (SSRF-guarded), `WAIT_FOR_SIGNAL` step, `POST /api/workflows/signals { correlationKey, signalName, payload }` | core workflows |
+| Runner call and return | `CALL_WEBHOOK` activity (SSRF-guarded), `WAIT_FOR_SIGNAL` step, `POST /api/workflows/instances/{id}/signal { signalName, payload }` | core workflows |
+| Module writes from a workflow | `UPDATE_ENTITY` runs a command declared with `registerWorkflowSafeCommands` and enabled for the tenant | `workflows/lib/workflow-safe-commands.ts`, `activity-executor.ts:1016-1053` |
 
 Two facts shape the design and are easy to get wrong:
 
 1. **Artifact results have no human gate.** An `artifact` result routes onto the `researcher`
-   outcome handle and the step resumes. So each WSFF design phase is an artifact agent
-   **followed by a `USER_TASK`**. Consequence: the correction flywheel fires on proposal
-   dispositions (sizer, slicer), not on design edits. Accepted for now; see Open Questions.
-2. **The effector runs commands, not activities.** `executeProposal` maps `action.type` to a
-   command id and skips anything unmapped. The shipped demo workflow instead routes the
-   `approved` handle to an ordinary `AUTOMATED` step that reads `context.proposalPayload`. We do
-   the same for the runner: proposal options carry a declarative `start_coding_run` action with a
-   declared `risk`, and the workflow's next step performs the `CALL_WEBHOOK`. Task writes are the
-   opposite case: they *are* commands of the `tasks` module, so they go through the command bus.
+   outcome handle and the step resumes (confirmed in `outcome-routing.ts:217-228`). So each WSFF
+   design phase is an artifact agent **followed by a `USER_TASK`**. Consequence: the correction
+   flywheel fires on proposal dispositions (sizer, slicer), not on design verdicts. Accepted for
+   now; see Open Questions.
+2. **Proposals are data; the workflow is the effector.** `executeProposal` is not called anywhere
+   in the orchestrator. The shipped demo routes the `approved` handle to an ordinary step whose
+   `UPDATE_ENTITY` reads `context.proposalPayload`. We do the same: the sizer and slicer return
+   declarative actions with a declared `risk`, and the workflow's next step performs the
+   `CALL_WEBHOOK` or the `tasks.task.*` command.
 
 ### The tasks module: intake and board
 
@@ -100,17 +101,25 @@ and where humans watch the fleet; it is not a project-management tool.
 
 - A task has a title, body, links, a `projectKey` (which target repo and credential bundle), a
   `source` (`manual | sentry | github | mcp | followup`), an optional parent, a status, and one
-  assignee: a user or an agent principal.
+  assignee. The assignee is always an `auth.User` id: a human, or an agent principal (a
+  non-interactive user of kind agent, provisioned once per org with
+  `agentPrincipalService.provision({ agentDefinitionId: 'factory' })` and shown in the picker as
+  "Factory agent").
 - Assigning to a human is board-only. Assigning to an agent emits
-  `tasks.task.assigned { taskId, assignmentId, assigneeKind: 'agent', agentId, source, projectKey }`.
-  Hook-created tasks are created already assigned to the factory agent and emit the same event:
-  one event, one trigger, whatever the source.
+  `tasks.task.assigned { taskId, assignmentId, assigneeKind: 'agent', agentId, source, projectKey, assignedBy, title }`,
+  where `agentId` is the agent definition id read from the principal, not the user id. The emit
+  carries `tenantId` and `organizationId` in the emit **options** as well as the payload, and is
+  persistent. Hook-created tasks are created already assigned to the factory agent and emit the
+  same event: one event, one start path, whatever the source.
 - The process writes back only through the module's **workflow-safe commands**:
   `tasks.task.set_status`, `tasks.task.link` (instance, Caseload item, PR, artifact) and
-  `tasks.task.create_followup`. Each is idempotent on (taskId, processInstanceId, stepId),
-  validates the transition, records the acting agent principal and the initiator, and is
-  audited and undoable like any Open Mercato command. The workflow never writes the table
-  directly.
+  `tasks.task.create_followup`, run by `UPDATE_ENTITY` steps. They are declared with
+  `registerWorkflowSafeCommands` in the module's `workflows.ts`, which also puts them in action
+  agents' vocabulary, and each must be **enabled per tenant** (off by default; the module seed
+  enables them). Each is idempotent on (taskId, processInstanceId, stepId), because activities
+  retry and `UPDATE_ENTITY` has no idempotency key; each validates the transition, records the
+  acting principal and the initiator, and is audited and undoable like any Open Mercato command.
+  The workflow never writes the table directly.
 - Un-assigning before the sizer has decided cancels the instance; after that the decision sits
   in the Caseload and the human disposes of it there.
 - **Follow-ups are created unassigned.** Remaining slices and review findings become child tasks
@@ -133,48 +142,98 @@ per process and trace cost are the metrics.
 
 ### The process
 
-One `ProcessDefinition`, `factory.deliver`, bound to one workflow:
+One `ProcessDefinition`, `factory.deliver`, bound to one workflow. Every step below runs as the
+workflow's execution principal (see *Starting and seeding*); every task write is an
+`UPDATE_ENTITY` on a `tasks.task.*` command.
 
 ```
-START
-  ├─ trigger: event   tasks.task.assigned   (assigneeKind = agent; idempotency: task:{taskId}:{assignmentId})
-  │     sources: board assignment · Sentry hook · GitHub hook (PR opened, author ≠ bot) · factory_send_task MCP
-  └─ trigger: manual                        (start for an existing task id)
+tasks.task.assigned (assigneeKind = agent)
+  sources: board assignment · Sentry hook · GitHub hook (PR opened, author ≠ bot) · factory_send_task MCP
+  └─ tasks subscriber → agent_orchestrator.processes.startExecution
+        idempotencyKey task:{taskId}:{assignmentId} · input { taskId, assignmentId, projectKey, title }
       ↓
-AUTOMATED     tasks.task.set_status → queued; tasks.task.link instance
-INVOKE_AGENT  factory.research         artifact: context (repo, error, linked issues, prior tasks)
-INVOKE_AGENT  factory.sizer            proposal: single_shot | medium | large | review_only | non_code | reject
-      ↓ approved                       (auto for single_shot when risk ≤ ceiling)
-[large]   INVOKE_AGENT factory.product_review   artifact  →  USER_TASK  approve/edit/reject + reason
+START         (definition declares only a `manual` trigger)
+AUTOMATED     set_status → queued; link → workflow instance
+INVOKE_AGENT  factory.research         artifact → resumes on the `researcher` handle, no gate
+INVOKE_AGENT  factory.sizer            proposal: ONE option, the recommended size
+      │   approved | auto_approved | edited ──SET_VARIABLE factory.size ← proposalPayload.options.0.actions.0.payload.size
+      │   option id = reject (agent), outcome `rejected` (human), outcome `researcher` (nothing proposed)
+      │                                                             ──▶ set_status → rejected ──▶ END
+      ↓ condition on context.factory.size
+[large]   INVOKE_AGENT factory.product_review   artifact  →  USER_TASK  designDecision approve | reject + notes
 [large]   INVOKE_AGENT factory.architecture     artifact  →  USER_TASK
 [medium+] INVOKE_AGENT factory.program_design   artifact  →  USER_TASK
-      ↓
-INVOKE_AGENT  factory.slicer           proposal: N ordered slices, each { files, risk, acceptance }
-      ↓ approved in the Caseload (option = one slice)          → tasks.task.set_status in_progress
-[code]      AUTOMATED  CALL_WEBHOOK  POST {RUNNER_URL}/runs   { correlationKey, repo, baseBranch, slice, design, limits }
-            WAIT_FOR_SIGNAL  factory.run.finished  (correlationKey = workflow instance id)
-                ↓
+      ↓ designDecision = approve   (reject → set_status rejected → END)
+INVOKE_AGENT  factory.slicer           proposal: ONE option carrying the ordered slices; the first is run
+      ↓ approved (same shape as the sizer)                        → set_status → in_progress
+[code]      CALL_WEBHOOK  POST {RUNNER_URL}/runs   { workflowInstanceId: {{workflow.instanceId}}, taskId, repo,
+                                                     baseBranch, slice, design, limits }
+            WAIT_FOR_SIGNAL  factory.run.finished   ← runner: POST /api/workflows/instances/{id}/signal
+                ↓ run.status = failed (incl. the runner's own timeout) → set_status → failed → END
             WAIT_FOR_SIGNAL  factory.checks.settled (from the GitHub hook: success | failure, head sha)
                 ↓ failure, attempts < 2  →  CALL_WEBHOOK POST {RUNNER_URL}/runs (fix run: same slice, same
                 │                           branch, failing check output in the prompt) → factory.run.finished
                 ↓ success, or attempts = 2
-[non_code]  effector: approved proposal executed as a command, or the artifact attached to the task
+[non_code]  effector: UPDATE_ENTITY on the approved proposal's command, or the artifact linked to the task
       ↓
 INVOKE_AGENT  factory.reviewer         proposal: approve | request_changes { findings[] }
       ↓ approved
 AUTOMATED     CALL_WEBHOOK  POST {RUNNER_URL}/review-comment      (posts findings on the PR)
-AUTOMATED     tasks.task.create_followup  (remaining slices, findings marked follow-up; unassigned)
-AUTOMATED     tasks.task.set_status → in_review   (done when the GitHub hook sees the PR merged)
-END           outcome: { type: 'pull_request', id: prUrl }  or  { type: 'task', id: taskId }
-milestones:   researched · sized · design_approved · pr_open · reviewed
+AUTOMATED     create_followup  (remaining slices, findings marked follow-up; unassigned)
+AUTOMATED     set_status → in_review   (done when the GitHub hook sees the PR merged)
+END           SET_VARIABLE outcome = { type: 'tasks:task', id: taskId }
+milestones:   researched · sized · design_approved · pr_open · reviewed   (top-level `milestone` key per step)
 ```
 
-Routing by size is a transition condition on `context.factory.size`, set by the sizer's
-`outputMapping`. The human never reviews code inside Open Mercato: the PR is the review surface,
-with CI as the verdict. Open Mercato reviews *decisions*. CI failing is a verdict too: it buys
-exactly one bounded fix run (Stripe's "at most two rounds of CI", SuperPlane's check handler),
-never an open loop, and a red PR after the second round goes to the reviewer and the human as
-red.
+How each piece works in 0.8.0, and why it is shaped this way:
+
+- **Start.** Our own persistent subscriber on `tasks.task.assigned` returns unless
+  `assigneeKind === 'agent'`, looks up `factory.deliver` and calls
+  `agent_orchestrator.processes.startExecution` with `idempotencyKey: task:{taskId}:{assignmentId}`,
+  `sourceEntityType: 'tasks:task'` and `triggeredBy: { kind: 'manual', ref: assignedBy }`. A process
+  `event` trigger cannot carry an idempotency key, and its `.strict()` config schema silently drops
+  the trigger if one is added, so the definition declares only the `manual` trigger that
+  `startExecution` requires. Never declare both, or every assignment starts two instances.
+- **Sizer approval.** On the human path the resume ignores `outputMapping` and never says which
+  option was selected; the context gets `disposition` and the whole `proposalPayload` envelope. So
+  the sizer returns exactly one option, its recommendation, and a `SET_VARIABLE` on the approved
+  transition copies the size into `factory.size`. Approve keeps the size, edit changes it, reject
+  takes the `rejected` outcome route. Once any outcome route is wired, every unwired non-approved
+  outcome fails the instance, so `researcher` (nothing proposed) is wired too. The slicer follows
+  the same one-option rule.
+- **Design gates.** Artifact results skip the human gate, so each design agent is followed by a
+  `USER_TASK` (`assignedToRoles`, a `formSchema` with `designDecision` and `designNotes`, a
+  deadline). Completing it merges the form data flat into the context, and the outgoing
+  transitions branch on `designDecision`. The artifact link goes into the task description and
+  onto the board card.
+- **Runner callback.** The `CALL_WEBHOOK` body passes `{{workflow.instanceId}}`; the runner signals
+  `POST /api/workflows/instances/{instanceId}/signal` with an API key whose role holds
+  `workflows.instances.signal`. The webhook fires before the instance parks at the wait step, so
+  the runner replies 202 first and signals afterwards (an early signal gets 409). The signal
+  payload merges flat into the context: `{ run: { status, prUrl, costUsd, summary } }`.
+- **Timeouts.** `WAIT_FOR_SIGNAL` parses a `timeout` but 0.8.0 never enforces it. The runner owns
+  the wall clock and signals `failed` with a reason on breach. A watchdog in the `tasks` module
+  that fails instances parked past a deadline is post-hackathon.
+- **Dev only:** a runner or stub on localhost needs `OM_WORKFLOWS_ALLOW_PRIVATE_URLS=true`, and
+  `APP_URL` must match the dev server's port.
+
+The human never reviews code inside Open Mercato: the PR is the review surface, with CI as the
+verdict. Open Mercato reviews *decisions*. CI failing is a verdict too: it buys exactly one
+bounded fix run (Stripe's "at most two rounds of CI", SuperPlane's check handler), never an open
+loop, and a red PR after the second round goes to the reviewer and the human as red.
+
+### Starting and seeding
+
+The workflow is **seeded as a database row**, not shipped in `workflows.ts`. The module's
+`setup.ts` `seedDefaults` calls
+`workflowDefinitionAuthoring.upsertOwnedDefinition({ ownerModule, workflowId, definition, grantedFeatures: ['tasks.process'], … })`,
+which is idempotent and provisions the workflow's execution principal: a service user whose ACL
+is exactly `grantedFeatures`. A run started by an event or a process has no initiating user, and
+code-shipped definitions have no `createdBy` and no grant, so `INVOKE_AGENT` and `UPDATE_ENTITY`
+would refuse to run. The same seed validates the graph with `workflowDefinitionDataSchema`,
+upserts the `ProcessDefinition` (manual trigger, milestones), enables the `tasks.task.*`
+commands for the tenant, and provisions the `factory` agent principal. `mercato init` runs it
+for new databases; existing ones run `yarn mercato seed:defaults --module tasks`.
 
 ### The scenarios it must satisfy
 
@@ -195,20 +254,29 @@ teammate can own.
 | Agent | Type | Result | Tools | Notes |
 |---|---|---|---|---|
 | `factory.research` | researcher | artifact | web_fetch, repo read tool, task read tool | Gathers context for the sizer; no gate |
-| `factory.sizer` | decision maker | proposal | none, object mode | Options `single_shot`, `medium`, `large`, `review_only`, `non_code`, `reject`; `risk` declared per option |
+| `factory.sizer` | decision maker | proposal | none, object mode | One option: the recommended size out of `single_shot`, `medium`, `large`, `review_only`, `non_code`, `reject`, with one `set_size` action; `risk` declared on the action; runner-up named in the rationale |
 | `factory.product_review` | researcher | artifact | web_fetch, repo read tool | WSFF phase 1: PRD plus HTML mockup, from a `TEMPLATE.md` skill |
 | `factory.architecture` | researcher | artifact | repo read tool | WSFF phase 2: sequence diagram, endpoints, data model |
 | `factory.program_design` | researcher | artifact | repo read tool | WSFF phase 3: call-stack tree, file-tree diff, signatures |
-| `factory.slicer` | decision maker | proposal | none | WSFF phase 4: ordered slices, `{ files[], risk, acceptance[] }` per option |
+| `factory.slicer` | decision maker | proposal | none | WSFF phase 4: one option whose action carries the ordered slices, `{ files[], risk, acceptance[] }` each; the first is run, the rest become follow-ups |
 | `factory.reviewer` | decision maker | proposal | PR diff read tool | Findings with severity and a follow-up flag; never approves on its own authority |
 | `factory.status_writer` | researcher | artifact | GitHub read tool, task read tool | Weekly status from tasks, PRs and traces |
 
-Runtime: **native** (`defineAgent` in `ai-agents.ts`, Vercel AI SDK object mode) for the sizer,
-slicer and reviewer, because they are typed decisions with no need for a file workspace and they
-test in the Playground in seconds. **File-defined** (`agents/<id>/AGENT.md`) for the research and
-design agents, because their value is the WSFF template skills and they should be editable by
-someone who does not write TypeScript. If the OpenCode sidecar is not healthy by Saturday noon,
-all agents ship native and the templates become prompt sections.
+Runtime: **native** (`defineAgent` in `ai-agents.ts`, Vercel AI SDK object mode) is the default
+for the sizer, slicer and reviewer, because they are typed decisions with no need for a file
+workspace and they test in the Playground in seconds. **File-defined** (`agents/<id>/AGENT.md`)
+is the target for the research and design agents, because their value is the WSFF template
+skills and they should be editable by someone who does not write TypeScript. File agents in app
+modules do load in a standalone 0.8.0 app, but running one needs the OpenCode sidecar
+(`OPENCODE_URL`) plus the MCP server, and a file agent may not reference app-module
+`defineAiTool` ids. For the hackathon **all agents start native**, with the templates as prompt
+sections; an agent moves to file-defined only once the sidecar runs. Agent ids are globally
+unique across modules (`defineAgent` throws on a duplicate).
+
+Provider: `OM_AI_PROVIDER=anthropic`, `OM_AI_MODEL` (the adapter default is
+`claude-haiku-4-5-20251001`, enough for the sizer and slicer; the design agents and reviewer set
+a stronger model through the agent's `defaultModel`), and `ANTHROPIC_API_KEY`.
+Agent runs go through the `invoke_agent` queue, so the workers must be running.
 
 The repo read tool is one `defineAiTool` with `isMutation: false` that returns a file listing and
 file contents from a shallow clone kept by the runner, ACL-gated like every other tool. The task
@@ -223,17 +291,22 @@ clone and a headless coding agent. Contract:
 
 ```
 control → runner   POST /runs
-                   { runId, correlationKey, taskId, repo, baseBranch, slice, design, limits:
+                   { runId, workflowInstanceId, taskId, repo, baseBranch, slice, design, limits:
                      { maxMinutes, maxCostUsd }, bot: { prAuthor },
                      harness: 'claude' | 'opencode',            (per run; default 'claude')
                      attempt: 1 | 2, failingChecks?: [...] }     (2 = the bounded fix run)
-                   → 202 { runId }
+                   → 202 { runId }                               (dedup on workflowInstanceId + attempt:
+                                                                  the webhook activity retries)
 
-runner  → control  POST /api/workflows/signals      (Bearer: API key of the runner principal,
-                   { correlationKey,                  feature workflows.signals.send)
-                     signalName: 'factory.run.finished',
-                     payload: { status: 'pr_open'|'failed'|'timeout', prUrl?, costUsd?, summary } }
+runner  → control  POST /api/workflows/instances/{workflowInstanceId}/signal
+                   (x-api-key: key whose role holds workflows.instances.signal; sent only after
+                    the 202, since the instance parks after the webhook returns; retry on 409)
+                   { signalName: 'factory.run.finished',
+                     payload: { run: { status: 'pr_open'|'failed', reason?, prUrl?, costUsd?, summary } } }
 ```
+
+The runner owns the timeout: 0.8.0 does not enforce `WAIT_FOR_SIGNAL` timeouts, so on breach it
+kills the run and signals `failed` with `reason: 'timeout'`.
 
 Runner steps: fresh worktree from `baseBranch`, write the approved design and slice into the
 prompt, run the coding agent headless (`claude -p` or `opencode run`, chosen by the `harness`
@@ -395,7 +468,7 @@ CALL_WEBHOOK ──POST /runs──▶ authenticate, project allowlist, 202
                              kill on cost/time breach                   against run-<id> services
                              on exit: diff scan (ci/test/lockfile) ◀─── commits on factory/<runId>
                              git push as bot, gh pr create, evidence in PR body
-WAIT_FOR_SIGNAL ◀──POST /api/workflows/signals { correlationKey, status, prUrl, costUsd }
+WAIT_FOR_SIGNAL ◀──POST /api/workflows/instances/{id}/signal { run: { status, prUrl, costUsd } }
                              finally: compose down -v, network rm, rm -rf /work/<runId>, token discarded
 ```
 
@@ -408,7 +481,7 @@ Trust boundaries:
 ┌─ Open Mercato (control plane): tasks · triggers · propose-only agents · Caseload · traces ┐
 │  holds: shared secret for the shim, nothing else                                          │
 └──────────────┬───────────────────────────────────────────────▲────────────────────────────┘
-  private net  │ POST /runs (bearer)                            │ POST /signals (bot API key)
+  private net  │ POST /runs (bearer)                            │ POST …/signal (bot API key)
 ┌──────────────▼─ Runner VM ─────────────────────────────────────┴──────────────────────────┐
 │  shim (root-equivalent via docker.sock); holds project bundles (RO), GitHub App key       │
 │  ┌─ run-<id> network, egress allowlist ────────────────────────────────────────────────┐  │
@@ -445,16 +518,44 @@ daily cost caps live in the dispatcher.
 | Piece | Size | Owner role |
 |---|---|---|
 | `tasks` module: entity, board page, `set_status` / `link` / `create_followup` commands, `tasks.*` events, hook routes (Sentry, GitHub: PR opened, checks settled, PR merged) | medium | tasks owner |
-| `factory` module: process definition and workflow JSON, milestones, transition conditions | medium | process owner |
+| Workflow JSON, process definition, milestones and transition conditions, seeded from the module's `setup.ts`; the start subscriber | medium | process owner |
 | Eight agents, three WSFF template skills, repo and task read tools | medium | agent author |
 | Runner container and its two endpoints | medium | runner engineer |
 | A target repo with one feature request and one seeded Sentry-shaped event; the demo script | small | demo owner |
 | Eval assertions on the sizer and slicer; the correction walkthrough | small | evals owner |
 
 Core has no generic inbound-webhook endpoint (only `communication_channels` provider hooks), so
-the hook routes are real code, roughly 60 lines each. Event names live under the `tasks.` and
-`factory.` prefixes because the trigger subscriber excludes `agent_orchestrator.` and
-`workflows.` events to prevent recursion.
+the hook routes are real code, roughly 60 lines each. Event names live under the `tasks.`
+prefix; the orchestrator's trigger subscriber excludes `agent_orchestrator.` and `workflows.`
+events to prevent recursion, which matters if a later process uses an event trigger directly.
+
+### Known platform constraints (0.8.0)
+
+Paths are relative to `node_modules/@open-mercato/`: `WF` = `core/src/modules/workflows`, `ENT` =
+`enterprise/src/modules/agent_orchestrator`. **[upstream]** marks the ones worth an upstream issue.
+
+1. **[upstream]** Event- or process-started runs have no actor; code-shipped workflows have no `createdBy` or
+   grant, so `INVOKE_AGENT`/`UPDATE_ENTITY` refuse to run. Seed a DB row with `grantedFeatures`
+   (`WF/lib/activity-executor.ts:1457-1465,1039-1042`; `ENT/workers/process-execution-starter.ts:56-59`).
+2. Workflow-safe commands are off per tenant until enabled (`WF/lib/workflow-command-enablement.ts:118-124`);
+   the shipped demo's `apply` step fails today for this reason.
+3. **[upstream]** Process event triggers take no idempotency key, and the `.strict()` trigger config silently
+   drops a trigger with unknown fields (`ENT/subscribers/process-event-trigger.ts:179-186`;
+   `ENT/data/validators.ts:1144-1171`; `ENT/lib/tasks/triggers.ts:20-30`).
+4. The trigger subscriber reads scope only from emit options; `createModuleEvents().emit` copies
+   payload scope into options only for `clientBroadcast` events (`ENT/subscribers/process-event-trigger.ts:86-90`;
+   `shared/src/modules/events/factory.ts:346-365`).
+5. **[upstream]** The human-path resume ignores `outputMapping` and never passes the selected option id; the
+   auto path names the proposal id differently (`ENT/lib/disposition/resume.ts:61-73`;
+   `WF/lib/activity-worker-handler.ts:571-592`).
+6. **[upstream]** `WAIT_FOR_SIGNAL` `timeout` is parsed and logged, never scheduled (`WF/lib/step-handler.ts:1337-1339`).
+7. A process-started instance's correlation key is `process_execution:<processInstanceId>`,
+   unreadable from the workflow context, so signals go by instance id (`ENT/workers/process-execution-starter.ts:199`).
+8. **[upstream]** Scaffold: the app `tsconfig` does not exclude `agents/**/scripts/**` and `agents/**/tools/**`,
+   which the file-agent sandbox needs (`ENT/AGENTS.md:186`).
+9. **[upstream]** Scaffold: `.mercato/generated/file-agents.generated.ts` uses package-relative imports that
+   fail typecheck in a standalone app; runtime resolves them through a fallback
+   (`ENT/lib/sdk/defineAgent.ts:434-461`). Worked around with a post-generate script.
 
 ### Beyond code: the factory is a process, not a codebase feature
 
@@ -618,7 +719,8 @@ corrections and eval cases are the orchestrator's own. The runner persists nothi
 | `source_ref` | text, nullable | e.g. `sentry:{issueId}`, `pr:{repo}#{number}`; unique per tenant with `source` for dedup |
 | `parent_id` | uuid, nullable | follow-ups point at the task that produced them |
 | `status` | enum | `open \| queued \| in_design \| in_progress \| in_review \| done \| rejected \| failed` |
-| `assignee_kind`, `assignee_id` | enum, uuid, nullable | `user \| agent`; an agent is an `auth.User` of kind agent |
+| `assignee_kind` | enum, nullable | `user \| agent`; the board filters on it |
+| `assignee_id` | uuid, nullable | an `auth.User` id for both kinds: a human, or the org's agent principal. The agent definition id is not stored; it travels in the event as `agentId`, resolved from the principal |
 | `assignment_id` | uuid, nullable | new per assignment; part of the idempotency key |
 | `assigned_by` | uuid, nullable | the initiator |
 | `process_instance_id` | uuid, nullable | set by `tasks.task.link` |
@@ -627,26 +729,37 @@ corrections and eval cases are the orchestrator's own. The runner persists nothi
 
 Enablement is configuration: `OM_ENABLE_ENTERPRISE_MODULES=true` and
 `OM_ENABLE_ENTERPRISE_MODULES_AGENTS=true`, then `yarn generate`, `yarn db:migrate`,
-`yarn mercato auth sync-role-acls`.
+`yarn mercato auth sync-role-acls`, `yarn mercato seed:defaults --module tasks`.
+
+Encryption note: with `TENANT_DATA_ENCRYPTION=yes`, `ProcessInstance.input`, agent run input and
+output, and proposal payloads are encrypted at rest. Reads through the ORM are fine; raw SQL shows
+ciphertext.
 
 ## API Contracts
 
 Ours, in the `tasks` module:
 
 - Task CRUD and the board: standard module API under `/api/tasks/...`, ACL features
-  `tasks.view`, `tasks.manage`, `tasks.assign_agent`.
-- Commands: `tasks.task.set_status { taskId, status, reason? }`, `tasks.task.link { taskId,
-  kind, ref }`, `tasks.task.create_followup { parentId, title, body, projectKey }`. Idempotent on
-  (taskId, processInstanceId, stepId); reject illegal transitions.
+  `tasks.view`, `tasks.manage`, `tasks.assign_agent`, plus `tasks.process`, held only by the
+  workflow's execution principal through `grantedFeatures`.
+- Workflow-safe commands, `requiredFeatures: ['tasks.process']`:
+  `tasks.task.set_status { taskId, status, reason?, processInstanceId, stepId }`,
+  `tasks.task.link { taskId, kind, ref, processInstanceId, stepId }`,
+  `tasks.task.create_followup { parentId, title, body, projectKey, processInstanceId, stepId }`.
+  Idempotent on (taskId, processInstanceId, stepId); reject illegal transitions.
 - Events: `tasks.task.created`, `tasks.task.assigned { taskId, assignmentId, assigneeKind,
-  agentId?, source, projectKey }`, `tasks.task.unassigned`, `tasks.task.status_changed`.
+  agentId?, source, projectKey, assignedBy, title }` (persistent, scope in the emit options),
+  `tasks.task.unassigned`, `tasks.task.status_changed`.
+- Subscriber `start-factory` on `tasks.task.assigned`: starts `factory.deliver` through
+  `startExecution` with the idempotency key (see *The process*).
 - `POST /api/tasks/hooks/sentry`: Sentry issue-alert webhook, HMAC verified with the Sentry client
   secret; creates (or dedups on `source_ref`) a task assigned to the factory agent. Drops anything
   below the configured event count.
 - `POST /api/tasks/hooks/github`: signature verified. `pull_request.opened` creates a review task
   assigned to the factory agent and **drops PRs authored by the bot** (loop guard).
   `check_suite.completed` and `workflow_run.completed` on a `factory/<runId>` branch resolve the
-  waiting instance from the branch name and post the signal `factory.checks.settled { sha,
+  task from the branch name, and its linked workflow instance, and send the signal
+  `factory.checks.settled { sha,
   conclusion, failing: [{ name, url, summary }] }`; only required checks read from branch
   protection count. `pull_request.closed` with `merged` on a factory branch sets the task `done`.
 - MCP tool `factory_send_task { projectKey, title, body, links[] }`: the seam between an
@@ -658,8 +771,10 @@ Ours, in the `tasks` module:
 Ours, on the runner: `POST /runs` and `POST /review-comment` as above, bearer-authenticated with a
 shared secret held only by the Open Mercato server and the runner.
 
-Consumed unchanged: `POST /api/agent_orchestrator/processes/{id}/executions` (manual start, 202),
-`POST /api/workflows/signals`, `POST /api/workflows/tasks/{id}/complete`.
+Consumed unchanged: the `agent_orchestrator.processes.startExecution` command (also
+`POST /api/agent_orchestrator/processes/{id}/executions` for a manual start, 202),
+`POST /api/workflows/instances/{id}/signal`, `POST /api/workflows/tasks/{id}/complete`,
+`POST /api/agent_orchestrator/proposals/{id}/dispose`.
 
 `factory.run.finished` and `factory.checks.settled` are signal names, not events.
 
@@ -669,14 +784,33 @@ Ordered for the hackathon; each step is worth having if the next one never lands
 
 1. **Friday, 18:15 kickoff.** Team formation, roles assigned, the scenario strips written in 45
    minutes, the target repo and feature chosen. Confirm the app boots with the enterprise agents
-   module and a healthy OpenCode sidecar. Create the GitHub App, install it on a throwaway target
-   repo, keep its private key on the runner host only. One LLM provider key. In parallel: the
-   `tasks` entity and events, the OUTCOME schemas and WSFF templates (they need no running app),
-   and the runner container skeleton.
-2. **Saturday morning.** The whole chain with stub agents returning canned artifacts. By lunch:
-   assign a task to the agent → `tasks.task.assigned` → sizer → one USER_TASK → slicer →
-   `CALL_WEBHOOK` to a runner that immediately signals `pr_open` with a fake URL → task
-   `in_review`. Nothing real inside, everything wired.
+   module (the OpenCode sidecar is optional until an agent moves to file-defined). Create the
+   GitHub App, install it on a throwaway target repo, keep its private key on the runner host
+   only. One LLM provider key. In parallel: the `tasks` entity and events, the OUTCOME schemas and
+   WSFF templates (they need no running app), and the runner container skeleton.
+2. **Saturday morning: the minimal chain.** `tasks.task.assigned` → `factory.deliver` → queued
+   and linked → `factory.sizer` → Caseload approve → in_progress → stub runner → signal →
+   in_review. Nothing real inside, everything wired.
+   - Module files in `tasks`: `acl.ts` (`tasks.view`, `tasks.manage`, `tasks.assign_agent`,
+     `tasks.process`); `commands/` for `set_status` and `link`, idempotent on (taskId,
+     processInstanceId, stepId); `events.ts`; `workflows.ts` with `registerWorkflowSafeCommands`;
+     `subscribers/start-factory.ts`; `ai-agents.ts` plus `data/validators.ts` for the one-option
+     sizer; `workflows/factory-deliver.json`; a dev-only, feature-gated
+     `api/dev/runner-stub/route.ts` that answers 202 and signals `factory.run.finished` about two
+     seconds later with a fake PR URL.
+   - Seed, in `setup.ts` `seedDefaults`: the workflow row via `upsertOwnedDefinition` with
+     `grantedFeatures: ['tasks.process']`, the `ProcessDefinition` (manual trigger, milestones
+     `sized` and `pr_open`), the tenant enablement of the two commands, the `factory` agent
+     principal. Then `yarn generate && yarn mercato seed:defaults --module tasks`.
+   - Env: `OM_AI_PROVIDER=anthropic`, `OM_AI_MODEL=claude-haiku-4-5-20251001`,
+     `ANTHROPIC_API_KEY`, `OM_WORKFLOWS_ALLOW_PRIVATE_URLS=true` (dev), `APP_URL` on the dev
+     server's real port.
+   - Smoke test: assign a task to the agent; the execution appears under processes and the task
+     goes `queued`; the sizer's proposal appears in the Caseload (or auto-approves); approve it;
+     the task goes `in_progress`, then `in_review` with the PR link; `milestones_reached`
+     contains `sized` and `pr_open`. Check in the same run that the agent-`reject` condition route
+     (priority 200) wins over the default approved route.
+   The design USER_TASKs and the slicer are added to this chain in the afternoon.
 3. **Saturday afternoon.** Real agents in via the Playground first, then the workflow. Runner
    opens a real PR on the target repo. Put the artifact-gate question to the module authors at the
    event. **Runner fallback at 16:00:** if the container is not opening PRs, the `CALL_WEBHOOK`
@@ -763,12 +897,24 @@ side without framing it as a race (SuperPlane's velocity tab), goes on the board
 - **Enterprise licence for production.** [`@open-mercato/enterprise`](https://github.com/open-mercato/open-mercato/blob/main/packages/enterprise)
   is source-available; non-production use is fine, production use needs an enterprise licence.
   Each team reusing this checks the terms before deploying. Resolves: per adopter.
-- **Artifact gate ergonomics.** A `USER_TASK` shows a form, not the artifact. Does the work inbox
-  render `agent_run_artifacts` inline, or do we link the artifact URL in the task description (and
-  on the board card)? Resolves: Saturday morning, first stub run.
-- **Command activity in workflows.** Can an `AUTOMATED` step invoke a module command directly, or
-  do the `tasks.task.*` writes go through the module's own API with the agent principal's key?
-  Either keeps the commands as the only write path. Resolves: Saturday morning.
+- **Artifact gate ergonomics.** A `USER_TASK` shows a form, not the artifact; the artifact lands
+  in the context as `<stepId>_agent: { artifacts, summary }`. Does the work inbox render it
+  inline, or do we link the artifact URL in the task description (and on the board card)?
+  Resolves: Saturday morning, first stub run.
+- **Choosing among options.** The human-path resume does not pass the selected option id, so the
+  sizer and slicer return one option each. Real multi-option choice (the operator picks slice 2
+  of 4) needs a `tasks` command that reads `AgentProposal.selectedOptionId` by (instance, step),
+  or an upstream fix (constraint 5). Resolves: after the hackathon.
+- **Authenticating the call to the runner.** `CALL_WEBHOOK` injects no auth and secrets must not
+  come from `{{env.*}}`. The shared secret for `POST /runs` therefore needs an `EXECUTE_FUNCTION`
+  registered in the module's `di.ts` that reads it server-side, which has no ACL gate of its own.
+  The stub needs neither. Resolves: when the real runner is wired, Saturday afternoon.
+- **Signal timeout watchdog.** The runner signals `failed` on its own timeout, but a runner that
+  dies silently leaves the instance parked forever. A `tasks` scheduled job that fails instances
+  parked past a deadline, or an upstream fix (constraint 6). Resolves: after the hackathon.
+- **Definition versioning.** `upsertOwnedDefinition` updates the row in place, so in-flight
+  instances pick up graph edits on re-seed. Acceptable for the hackathon; decide on versioned
+  workflow ids before the first real target.
 - **Inference credentials at the boundary, not in the sandbox.** Today the provider key is in the
   runner's env, so a prompt-injected run could exfiltrate it. Warp never injects inference
   credentials into the sandbox; the equivalent here is an LLM gateway on the runner VM holding the
@@ -786,3 +932,4 @@ side without framing it as a race (SuperPlane's velocity tab), goes on the board
 | Date | Change |
 |------|--------|
 | 2026-09-18 | Ported from an internal draft; `tasks` module added as intake. |
+| 2026-09-18 | Hookup mechanics verified against 0.8.0 packages; process wiring, trigger, signal and seeding corrected. |
