@@ -60,6 +60,18 @@ Building a board, a drawer, projects, references and comments for this is a week
 - **Reviewer agent** (SPEC-001) produces findings. They appear as subtasks with the same
   assignee and no delegate, and wait there until a human delegates them.
 
+Chat intake (next iteration, storyboarded now; see *Chat intake*):
+
+- **Business owner** opens the AI assistant on a product page, attaches the product, and writes
+  "the product page on the website still shows last year's price". The intake agent asks one
+  question (which project), then proposes `WEB-13` delegated to the Factory agent in OM's
+  standard "Review proposed changes" card. They confirm and get a link to the task; everything
+  after that happens on the board and in the Caseload, not in the chat.
+- **Business owner without `tasks.delegate`** gets the same card without the delegate, and the
+  task lands in `Backlog` for someone who can delegate it.
+- **Anyone** asks "what's happening with WEB-12?" and gets the column, the run state and the
+  pending decision from `tasks_get`, with links. The chat never shows run progress itself.
+
 ## Proposed Solution
 
 ### What the prior art settled
@@ -244,11 +256,35 @@ they are **untrusted prompt input**.
 | Later | Seam already in place |
 |---|---|
 | Sentry and GitHub webhook intake, MCP `tasks_create` / `factory_send_task`, domain-event intake | an intake command that creates a `staff` task and delegates it; a `tasks_intake (source, source_ref)` table with a unique index arrives with the first hook |
+| Chat intake (the AI assistant creates and delegates a task) | the same intake command; designed below and storyboarded |
 | PR-merged hook setting `done` | the assignee closes `in-review` by hand; the hook will call `set_status` |
 | @mention an agent in a comment to trigger it | `staff.timesheets.time_task_comment.created`; the delegate command stays the only trigger |
 | "Has delegate" filter, cross-project factory board | our own page reading `tasks_delegation` joined to `staff` tasks by id |
 | Upstreaming a delegate field into `staff` | the delegation table maps one-to-one onto a future field |
 | Cost per task on the card | `process_instance_id`; traces are queried per instance |
+
+### Chat intake (next iteration)
+
+Open Mercato already has a chat: the topbar **AI** launcher (⌘L) opens `AiChat` in a sheet or
+the right dock. Chat intake adds no chat UI; it adds one module agent and one write tool.
+
+- **Agent** `tasks.intake` ("Task intake", *Can write*) in the launcher's picker. Its job is
+  to turn a vague request into a good task: ask at most a couple of questions, pick the
+  project, write a title and a body with acceptance criteria, and quote the attached records.
+- **Tools.** Read: `tasks_search`, `tasks_get`, and `tasks_projects` (the `staff` projects). Write: `tasks_create
+  { projectId, title, description, delegate?: boolean }`, a mutation declared through
+  `defineAiTool` + `prepareMutation`, so the chat shows OM's standard *Review proposed
+  changes* card and nothing is written before **Confirm**. The approved call runs
+  the intake command (`staff`'s task `create`, then `tasks.task.delegate`) as the chatting user,
+  so ACL is the board's ACL: without `tasks.delegate` the card shows no delegate and says why.
+- **Context.** Records and files the user attaches become chips and are quoted in the body.
+  0.8's launcher attaches nothing automatically; attaching the current page's record is the
+  user's move.
+- **Traceability.** Chat intake is the first hook, so it brings the `tasks_intake` table:
+  `source='chat'`, `source_ref='{conversationId}:{messageId}'`, so a retried confirmation cannot
+  create a second task.
+- **After confirmation the chat is done.** The result card links the task. Progress, the
+  design gate and the PR live on the board, the drawer and the Caseload.
 
 ## Design
 
@@ -265,6 +301,13 @@ Every screen is `staff`'s. We add two widgets:
   SPEC-003's "Changes" panel and run view; this section links to them.
 - States covered: loading (badge skeleton), a refused move (the board's error toast carries the
   `409` message), `stalled` (un-delegate offered), and orchestrator-absent (plain delegate badge).
+
+Storyboard: [`.ai/prototypes/factory-intake/`](../../.ai/prototypes/factory-intake/index.html),
+14 states from the empty board through delegation, the Caseload gate, review and failure, to
+chat intake. It was drawn before the rebuild on `staff`: its board, New task dialog and drawer
+frames show a custom board (own columns, priority, "has delegate" filter). Read those frames for
+the delegation flow and the badge and sidebar content, not for board chrome; the chat and
+Caseload frames are unaffected.
 
 ## Data Models
 
@@ -449,3 +492,5 @@ test`; `yarn test:integration:ephemeral` after steps 7, 8 and 10.
 | 2026-09-18 | Fresh-context review applied: delegate released at terminal states, reopen and re-delegate, assignee closes `in_review`, stale-write guard on `delegationId`, explicit transition matrix, un-delegate guard on the `sized` milestone, real event names, trigger switch moved into Phase 1. |
 | 2026-09-18 | Rebuilt on the core `staff` task board after trying it: `staff` provides projects, tasks, references, the board, the drawer and comments; `tasks` keeps only delegation (`tasks_delegation`), the process columns, a command-interceptor guard, two widgets and the workflow-safe commands. Priority, the cross-project board and the "has delegate" filter dropped from the MVP. |
 | 2026-09-18 | Drawer points to SPEC-003's change set panel and run view. |
+| 2026-09-18 | Chat intake designed (agent `tasks.intake`, write tool `tasks_create` behind OM's mutation approval); storyboard linked from Design. |
+| 2026-09-18 | Chat intake aligned with the `staff` rebuild: creates through the intake command, lands in `Backlog`, brings the `tasks_intake` table; storyboard board frames flagged as pre-rebuild. |
