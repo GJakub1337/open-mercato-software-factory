@@ -31,6 +31,11 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'ai_assistant', from: '@open-mercato/ai-assistant' },
   { id: 'scheduler', from: '@open-mercato/scheduler' },
   { id: 'webhooks', from: '@open-mercato/webhooks' },
+  // The demo company's catalog (SPEC-004); `sales` because core's catalog examples seed a
+  // sales channel and tax rates.
+  { id: 'catalog', from: '@open-mercato/core' },
+  { id: 'sales', from: '@open-mercato/core' },
+  { id: 'demo_fixtures', from: '@app' },
 ]
 
 const enterpriseModulesEnabled = parseBooleanWithDefault(process.env.OM_ENABLE_ENTERPRISE_MODULES, false)
