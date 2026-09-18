@@ -261,6 +261,8 @@ Every screen is `staff`'s. We add two widgets:
   (agents from `GET /api/tasks/agents`, visible with `tasks.delegate`), the run state, the links
   (instance, Caseload item, PR, artifacts), the outcome and close reason, and "Remove delegate"
   with the `decision_pending` explanation when refused.
+- What the factory changed (PRs, record updates, staged replies) and the run's progress are
+  SPEC-003's "Changes" panel and run view; this section links to them.
 - States covered: loading (badge skeleton), a refused move (the board's error toast carries the
   `409` message), `stalled` (un-delegate offered), and orchestrator-absent (plain delegate badge).
 
@@ -280,7 +282,7 @@ Task and project ids reference `staff` records by id only, with no ORM relation.
 | `delegated_by` | uuid | the initiator; SPEC-001's `triggeredBy` |
 | `assignee_user_id` | uuid | the accountable human's `auth.User` at delegation |
 | `process_instance_id` | uuid, nullable | set by `tasks.task.link` |
-| `links` | jsonb | `[{ kind: 'pr' \| 'caseload' \| 'artifact' \| 'instance', ref, url, addedAt }]` |
+| `links` | jsonb | `[{ kind: 'pr' \| 'caseload' \| 'artifact' \| 'instance' \| 'run', ref, url, addedAt }]`; `run` scopes SPEC-003's runner events |
 | `outcome` | enum, nullable | `done \| rejected \| failed`, set on release |
 | `close_reason` | text, nullable | required for `rejected` and `failed` |
 | `released_at` | timestamptz, nullable | |
@@ -446,3 +448,4 @@ test`; `yarn test:integration:ephemeral` after steps 7, 8 and 10.
 | 2026-09-18 | Gate resolved (assignee + delegate; manual triggers only; projects as records; plain comments); full draft. |
 | 2026-09-18 | Fresh-context review applied: delegate released at terminal states, reopen and re-delegate, assignee closes `in_review`, stale-write guard on `delegationId`, explicit transition matrix, un-delegate guard on the `sized` milestone, real event names, trigger switch moved into Phase 1. |
 | 2026-09-18 | Rebuilt on the core `staff` task board after trying it: `staff` provides projects, tasks, references, the board, the drawer and comments; `tasks` keeps only delegation (`tasks_delegation`), the process columns, a command-interceptor guard, two widgets and the workflow-safe commands. Priority, the cross-project board and the "has delegate" filter dropped from the MVP. |
+| 2026-09-18 | Drawer points to SPEC-003's change set panel and run view. |

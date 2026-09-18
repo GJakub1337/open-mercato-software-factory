@@ -20,7 +20,9 @@ pending decisions, traces with cost, and a corrections-to-evals flywheel. This s
   phases for large work (product review, architecture, program design, vertical slices), with
   a human gate in the Caseload before anything is built;
 - a self-hosted, stateless **coding runner** that turns one approved slice into one PR opened by
-  a bot, with one bounded CI fix round; non-code tasks use another effector;
+  a bot, with one bounded CI fix round; non-code tasks (a catalog correction, a reply to a
+  customer) end as record or message changes instead, specified in
+  [SPEC-003](./SPEC-003-2026-09-18-task-change-set.md) with everything else a task changed;
 - a review agent whose findings come back to the board as follow-up tasks.
 
 It is the Open Mercato HackOn build, sized so the tasks module, the process and agents, and the
@@ -183,7 +185,9 @@ INVOKE_AGENT  factory.slicer           proposal: ONE option carrying the ordered
                 ↓ failure, attempts < 2  →  CALL_WEBHOOK POST {RUNNER_URL}/runs (fix run: same slice, same
                 │                           branch, failing check output in the prompt) → factory.run.finished
                 ↓ success, or attempts = 2
-[non_code]  effector: UPDATE_ENTITY on the approved proposal's command, or the artifact linked to the task
+[non_code]  INVOKE_AGENT factory.operator   proposal: ONE option, actions = record updates and staged messages
+            EXECUTE_FUNCTION tasks.apply_change_set   (gates + compare-and-set per action; SPEC-003)
+                ↓ conflict or failed → create_followup; artifact-only → link the artifact to the task
       ↓
 INVOKE_AGENT  factory.reviewer         proposal: approve | request_changes { findings[] }
       ↓ approved
@@ -242,7 +246,8 @@ The workflow is **seeded as a database row**, not shipped in `workflows.ts`. The
 `setup.ts` `seedDefaults` calls
 `workflowDefinitionAuthoring.upsertOwnedDefinition({ ownerModule, workflowId, definition, grantedFeatures: ['tasks.process'], … })`,
 which is idempotent and provisions the workflow's execution principal: a service user whose ACL
-is exactly `grantedFeatures`. A run started by an event or a process has no initiating user, and
+is exactly `grantedFeatures` (SPEC-003 adds the `requiredFeatures` of each record command a
+project enables, e.g. `catalog.products.manage`). A run started by an event or a process has no initiating user, and
 code-shipped definitions have no `createdBy` and no grant, so `INVOKE_AGENT` and `UPDATE_ENTITY`
 would refuse to run. The same seed validates the graph with `workflowDefinitionDataSchema`,
 upserts the `ProcessDefinition` (manual trigger, milestones), enables the `tasks.task.*`
@@ -256,7 +261,9 @@ for new databases; existing ones run `yarn mercato seed:defaults --module tasks`
 | Bug from alert | Sentry hook creates a task delegated to the agent | research → sizer: single_shot, auto-approved if `risk: low` → slicer (one slice) → run → PR → reviewer | yes |
 | Feature from ticket | a human assigns a board task to the agent | research → sizer: large → three design gates → slicer → run one slice → PR → follow-ups for the rest | yes |
 | Code review | GitHub hook creates a review task (PR opened, author ≠ bot) | research → sizer: `review_only` → reviewer → findings posted | no |
-| Non-code task | a human assigns e.g. "summarise last week's failed syncs" | research → sizer: `non_code` → artifact or command proposal → Caseload → effector | no |
+| Non-code task | a human assigns e.g. "summarise last week's failed syncs" | research → sizer: `non_code` → operator: artifact → linked to the task | no |
+| Catalog correction | a human delegates "the Oak table is 140 cm, not 120" | research → sizer: `non_code` → operator: `catalog.products.update` → Caseload (before → after on the task) → compare-and-set apply, revertable ([SPEC-003](./SPEC-003-2026-09-18-task-change-set.md)) | no |
+| Support reply | a human delegates "answer the customer on *Late delivery SO-1042*" | research → sizer: `non_code` → operator: staged reply → Caseload → the assignee sends it under their own name (SPEC-003) | no |
 | Project status update | schedule, weekly | separate process `factory.status`: research agent → artifact → USER_TASK → `CALL_WEBHOOK` to the team chat | no |
 | Business data → website | `catalog.product.created` in Open Mercato; a `tasks` subscriber creates a task (`source: event`) delegated to the agent | research (product record, site repo) → sizer: single_shot → run → PR with preview → review route (usually waiver: new product page) → merged | yes |
 
@@ -291,6 +298,10 @@ The project's review map is configuration on the project, owned by a human:
 | `legal` | `legal/**`, terms, privacy, pricing copy, product claims | legal |
 | `code` + `legal` | both | developer and legal, in parallel |
 
+The same map has action rows for non-code changes (a staged reply may auto-approve because a person
+sends it; record updates never auto-approve in the MVP), see
+[SPEC-003](./SPEC-003-2026-09-18-task-change-set.md#who-approves-which-change).
+
 Routing is data, not code: new roles (accounting for price changes, HR for a job ad) are rows,
 reviewed where they work. Developers review in GitHub; everyone else reviews in the Caseload as a
 `USER_TASK` with `assignedToRoles`, fanned out with `PARALLEL_FORK` / `PARALLEL_JOIN`. Any reject
@@ -311,6 +322,7 @@ distinct from the coding bot (decision 6).
 | `factory.product_review` | researcher | artifact | web_fetch, repo read tool | WSFF phase 1: PRD plus HTML mockup, from a `TEMPLATE.md` skill |
 | `factory.architecture` | researcher | artifact | repo read tool | WSFF phase 2: sequence diagram, endpoints, data model |
 | `factory.program_design` | researcher | artifact | repo read tool | WSFF phase 3: call-stack tree, file-tree diff, signatures |
+| `factory.operator` | decision maker | proposal | read-only Open Mercato tools (catalog, customers, sales, messages), task read tool | `non_code` tasks: one option whose actions are record updates from core's workflow-safe list and staged replies; `allowedActions` narrowed per project (SPEC-003) |
 | `factory.slicer` | decision maker | proposal | none | WSFF phase 4: one option whose action carries the ordered slices, `{ files[], risk, acceptance[] }` each; the first is run, the rest become follow-ups |
 | `factory.reviewer` | decision maker | proposal | PR diff read tool | Findings with severity and a follow-up flag; never approves on its own authority |
 | `factory.status_writer` | researcher | artifact | GitHub read tool, task read tool | Weekly status from tasks, PRs and traces |
@@ -358,6 +370,10 @@ runner  → control  POST /api/workflows/instances/{workflowInstanceId}/signal
                      payload: { run: { status: 'pr_open'|'failed', reason?, prUrl?, previewUrl?,
                                      costUsd?, summary } } }
 ```
+
+SPEC-003 extends this contract: a change manifest in the signal (files touched against the
+slice's `files[]`, flags, screenshots), coarse progress events pushed while the run works
+(`POST /api/tasks/runs/{runId}/events`), and how the preview is routed and authenticated.
 
 The runner owns the timeout: 0.8.0 does not enforce `WAIT_FOR_SIGNAL` timeouts, so on breach it
 kills the run and signals `failed` with `reason: 'timeout'`.
@@ -766,7 +782,8 @@ traces.
 ## Design
 
 The board is the core `staff` task board with two `tasks` widgets, a card badge and a drawer
-section (see SPEC-002 *Design*); no storyboard yet.
+section (see SPEC-002 *Design*), plus the "Changes" drawer panel and the run view (see SPEC-003
+*Design*); no storyboard yet.
 Every other screen is the orchestrator's own (process instances, Caseload, traces, Playground).
 
 ## Data Models
@@ -990,12 +1007,12 @@ side without framing it as a race (SuperPlane's velocity tab), goes on the board
   allowed past the required-review rule for waiver classes only, e.g. a ruleset bypass for that
   app, while the coding bot stays unable to merge. Confirm rulesets can express this per PR rather
   than per branch. Resolves: before the first waiver is enabled; not needed for the hackathon.
-- **Preview hosting and cost.** Keeping run stacks alive for review holds a runner slot per open
-  PR. Keep on the runner VM with a TTL, or hand off to the repo's own preview environments where
-  they exist? Resolves: when the first real target is wired.
+- **Preview hosting and cost.** SPEC-003 keeps previews on the runner VM behind a per-project
+  cap. Still open: hand off to the repo's own preview environments where they exist. Resolves:
+  when the first real target is wired.
 - **Rendered-text diff for non-code reviewers.** What a lawyer sees: a text diff extracted from the
-  preview's pages before and after, or the source diff of content files. Resolves: with the legal
-  route.
+  preview's pages before and after, or the source diff of content files. It would render in
+  SPEC-003's change entry for the run. Resolves: with the legal route.
 
 ## Changelog
 
@@ -1009,3 +1026,4 @@ side without framing it as a race (SuperPlane's velocity tab), goes on the board
 | 2026-09-18 | Linked the orchestrator architecture brief (`docs/agent-orchestrator.md`). |
 | 2026-09-18 | `tasks` module moved to SPEC-002: human assignee plus agent delegate, trigger renamed to `tasks.task.delegated`, projects as records. |
 | 2026-09-18 | Tasks, projects, the board and comments now come from the core `staff` module (SPEC-002 rebuilt on it); `tasks` keeps delegation, the guard and the workflow-safe commands; configuration keys on the project id. |
+| 2026-09-18 | Non-code effects and run visibility moved to SPEC-003: `factory.operator`, the `non_code` branch through one effector function with compare-and-set, catalog-correction and support-reply scenarios, action rows in the review map, the runner manifest and progress events. |
