@@ -1,0 +1,16 @@
+{
+  "name": "open-mercato-software-factory",
+  "private": true,
+  "description": "Agentic software factory on Open Mercato's Agent Orchestrator",
+  "scripts": {
+    "setup": "cd apps/mercato && corepack yarn install && corepack yarn generate && corepack yarn db:migrate && corepack yarn initialize",
+    "dev": "cd apps/mercato && corepack yarn dev",
+    "build": "cd apps/mercato && corepack yarn build",
+    "generate": "cd apps/mercato && corepack yarn generate",
+    "db:migrate": "cd apps/mercato && corepack yarn db:migrate",
+    "initialize": "cd apps/mercato && corepack yarn initialize",
+    "lint": "cd apps/mercato && corepack yarn lint",
+    "typecheck": "cd apps/mercato && corepack yarn typecheck",
+    "test": "cd apps/mercato && corepack yarn test"
+  }
+}

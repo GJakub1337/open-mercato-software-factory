@@ -1,0 +1,20 @@
+# Specs
+
+Design specs for non-trivial changes. Naming: `SPEC-{NNN}-{YYYY-MM-DD}-{kebab-title}.md`.
+
+Sections: TLDR, Problem Statement, User Stories, Proposed Solution, Design, Data Models,
+API Contracts, Implementation Approach, Key Design Decisions, Open Questions, Changelog.
+
+## Index
+
+<!-- Number-allocation ledger: take the next {NNN} from here and add your row in the same
+     commit that creates the spec. Numbers are never reused or renumbered. -->
+
+| SPEC | Date | Title | Status | Description |
+|------|------|-------|--------|-------------|
+| [001](./SPEC-001-2026-09-18-agentic-software-factory.md) | 2026-09-18 | Agentic Software Factory on the Open Mercato Agent Orchestrator | Draft | A `tasks` module as intake and board; assigning a task to an agent triggers one orchestrator process (research → size → WSFF design gates in the Caseload → slices → coding runner or another effector → review → follow-up tasks); stateless, replaceable runner opening one PR per slice as a bot with one bounded CI fix round |
+
+Statuses: `Draft` → `Approved` → `Implemented` (or `Rejected` / `Superseded by SPEC-NNN`).
+
+The spec body is state: keep it matching what is being built. The Changelog table is a record:
+append dated rows, never rewrite old ones.
