@@ -63,8 +63,9 @@ task sees `running` for twenty minutes and then a link.
 
 ## User Stories
 
-- **Business owner** delegates "the Oak table's description says 120 cm, it's 140 cm, and the
-  dimensions attribute is empty". The Caseload asks them to approve one change to *Oak table*.
+- **Business owner** delegates "ZDP-5000 holds 5200 l, not 5000, and its dimensions are empty"
+  (the demo company's diesel tank, [SPEC-004](./SPEC-004-2026-09-18-demo-stal-zbiorniki.md)). The
+  Caseload asks them to approve one change to *ZDP-5000*.
   The task drawer shows `description` and `dimensions` before and after. They approve, the product
   updates, and the entry shows `applied` with a link to the audit log entry (and, from Phase 2,
   **Revert**).
@@ -97,7 +98,7 @@ A task's path through SPEC-001's process decides which kinds it can produce:
 | `review_only` | `factory.reviewer` | none (findings become follow-ups) |
 
 **One change set per task, one kind of plan per proposal.** A task that needs both code and data,
-such as "add a care-instructions field to the product page and fill it for the Oak table", is
+such as "add a certificates field to the product page and fill it for ZDP-5000", is
 split by the slicer: the code slice runs, and the data slice becomes a follow-up task that the
 assignee delegates after the PR merges. This keeps the order explicit: data never lands before the
 code that shows it. Ordering inside one process (apply data after the merge signal) comes later
@@ -381,7 +382,7 @@ the declared risk of every record command, the same way SPEC-001 treats code.
 
 No storyboard yet. Screens:
 
-- **Drawer panel**, collapsed rows: `[icon] Oak table · description, dimensions · applied · by Anna`
+- **Drawer panel**, collapsed rows: `[icon] ZDP-5000 · title, description, dimensions · applied · by Marek`
   and `[icon] PR #41 · 7 files (1 unplanned, lockfile) · checks green · preview`. States: loading
   skeleton, empty (delegated, nothing proposed yet: "Nothing proposed yet"), orchestrator
   absent (the panel hides), `conflict` (three columns: proposed against, current, proposed),
@@ -479,7 +480,7 @@ The hackathon needs only Phase 1. Each phase ends working and tested.
    row per `(proposal_id, action_index)`.
 2. `factory.operator` agent (native, one option, `allowedActions: ['catalog.products.update']`) in
    the Playground against a seeded product. *Test:* an eval case asserting the action type and the
-   exact fields for the Oak table brief.
+   exact fields for the ZDP-5000 brief.
 3. `snapshot-change-set` subscriber. *Test:* a proposal for a delegated task writes `proposed`
    rows with `before`; one for an undelegated instance writes nothing.
 4. `tasks.apply_change_set` with the vocabulary check, the three gates and compare-and-set; the
@@ -557,3 +558,4 @@ test`; `yarn test:integration:ephemeral` after Phase 1 step 5 and at the end of 
 |------|--------|
 | 2026-09-18 | Draft: change set with `code`, `record`, `message` and `artifact` kinds; one effector function with compare-and-set; person-sent messages; runner progress events and manifest; previews behind a signed redirect. |
 | 2026-09-18 | Fresh-context review applied: own effector loop instead of `executeProposal`; record grants in the seed; revert as a compared reverse change instead of platform undo (moved to Phase 2); edited-proposal, replay, stale-delegation and normalisation rules; send limited to conversation participants with `sendViaEmail`; run-scoped events; preview token stripped on entry. |
+| 2026-09-18 | Examples moved from the Oak table to the demo company's ZDP-5000 tank (SPEC-004). |

@@ -13,7 +13,7 @@ Design: [`docs/specs/SPEC-001-2026-09-18-agentic-software-factory.md`](docs/spec
 | Path | What |
 |---|---|
 | `/` | Standalone Open Mercato 0.8 app ([`create-mercato-app`](https://docs.openmercato.com/customization/standalone-app), empty preset) with the enterprise `agent_orchestrator` module enabled |
-| `src/modules/` | Our modules: `tasks` (the task board, the factory's intake), `factory` (agents, process definitions, webhooks) |
+| `src/modules/` | Our modules: `tasks` (the task board, the factory's intake), `factory` (agents, process definitions, webhooks), `demo_fixtures` (the demo company's catalog, [SPEC-004](docs/specs/SPEC-004-2026-09-18-demo-stal-zbiorniki.md)) |
 | `docs/agent-orchestrator.md` | How the upstream Agent Orchestrator works (architecture brief) |
 | `docs/specs/` | Specs |
 | `AGENTS.md` | Agent rules (Open Mercato's standalone-app harness); `CLAUDE.md` points to it |

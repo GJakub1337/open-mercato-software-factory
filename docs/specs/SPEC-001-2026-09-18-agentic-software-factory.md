@@ -68,7 +68,8 @@ the change class requires (an engineer, a lawyer, both, or none by policy).
   with the parent's assignee and no delegate.
 - **Team lead** opens the board → sees every task by status, assignee and delegate, with the process
   instance, cost so far and the pending decision linked.
-- **Business owner** (e.g. a manufacturer running sales, catalog and staff in Open Mercato, with
+- **Business owner** (e.g. the steel-tank manufacturer of the demo,
+  [SPEC-004](./SPEC-004-2026-09-18-demo-stal-zbiorniki.md), running sales, catalog and staff in Open Mercato, with
   the company website's repo connected as a project) adds a product in the catalog → a task
   "publish a product page" appears on the board, already delegated to the agent → a preview link
   to approve, then the page live. They never read a diff; a change that needs an engineer or a
@@ -262,7 +263,7 @@ for new databases; existing ones run `yarn mercato seed:defaults --module tasks`
 | Feature from ticket | a human assigns a board task to the agent | research → sizer: large → three design gates → slicer → run one slice → PR → follow-ups for the rest | yes |
 | Code review | GitHub hook creates a review task (PR opened, author ≠ bot) | research → sizer: `review_only` → reviewer → findings posted | no |
 | Non-code task | a human assigns e.g. "summarise last week's failed syncs" | research → sizer: `non_code` → operator: artifact → linked to the task | no |
-| Catalog correction | a human delegates "the Oak table is 140 cm, not 120" | research → sizer: `non_code` → operator: `catalog.products.update` → Caseload (before → after on the task) → compare-and-set apply, revertable ([SPEC-003](./SPEC-003-2026-09-18-task-change-set.md)) | no |
+| Catalog correction | a human delegates "ZDP-5000 holds 5200 l, not 5000" | research → sizer: `non_code` → operator: `catalog.products.update` → Caseload (before → after on the task) → compare-and-set apply, revertable ([SPEC-003](./SPEC-003-2026-09-18-task-change-set.md)) | no |
 | Support reply | a human delegates "answer the customer on *Late delivery SO-1042*" | research → sizer: `non_code` → operator: staged reply → Caseload → the assignee sends it under their own name (SPEC-003) | no |
 | Project status update | schedule, weekly | separate process `factory.status`: research agent → artifact → USER_TASK → `CALL_WEBHOOK` to the team chat | no |
 | Business data → website | `catalog.product.created` in Open Mercato; a `tasks` subscriber creates a task (`source: event`) delegated to the agent | research (product record, site repo) → sizer: single_shot → run → PR with preview → review route (usually waiver: new product page) → merged | yes |
@@ -594,7 +595,7 @@ daily cost caps live in the dispatcher.
 | Workflow JSON, process definition, milestones and transition conditions, seeded from the module's `setup.ts`; the start subscriber | medium | process owner |
 | Eight agents, three WSFF template skills, repo and task read tools | medium | agent author |
 | Runner container and its two endpoints | medium | runner engineer |
-| A target repo with one feature request and one seeded Sentry-shaped event; the demo script | small | demo owner |
+| A target repo with one feature request and one seeded Sentry-shaped event; the demo script and the demo company's catalog ([SPEC-004](./SPEC-004-2026-09-18-demo-stal-zbiorniki.md)) | small | demo owner |
 | Eval assertions on the sizer and slicer; the correction walkthrough | small | evals owner |
 
 Core has no generic inbound-webhook endpoint (only `communication_channels` provider hooks), so
@@ -655,7 +656,8 @@ autonomous throughput. Same machinery, different economic claim.
 A domain is a good second target when three things hold: the system of record is one we run,
 tasks originate as events in it, and "done" checks against data rather than opinion.
 
-The persona that makes this concrete is the **business owner**: a manufacturer who runs sales,
+The persona that makes this concrete is the **business owner**: a manufacturer (in the demo, Marek
+of Stal-Zbiorniki, a steel-tank maker; SPEC-004) who runs sales,
 catalog and staff in Open Mercato and connects the company website's repo as a project. From one
 board they delegate both kinds of work, and the valuable tasks cross the line: a new product in
 the catalog becomes a product page; a drop in a product's sales becomes a proposed landing-page
@@ -1027,3 +1029,4 @@ side without framing it as a race (SuperPlane's velocity tab), goes on the board
 | 2026-09-18 | `tasks` module moved to SPEC-002: human assignee plus agent delegate, trigger renamed to `tasks.task.delegated`, projects as records. |
 | 2026-09-18 | Tasks, projects, the board and comments now come from the core `staff` module (SPEC-002 rebuilt on it); `tasks` keeps delegation, the guard and the workflow-safe commands; configuration keys on the project id. |
 | 2026-09-18 | Non-code effects and run visibility moved to SPEC-003: `factory.operator`, the `non_code` branch through one effector function with compare-and-set, catalog-correction and support-reply scenarios, action rows in the review map, the runner manifest and progress events. |
+| 2026-09-18 | Demo storyline and company moved to SPEC-004 (Stal-Zbiorniki, a steel-tank manufacturer); catalog-correction example now ZDP-5000. |
