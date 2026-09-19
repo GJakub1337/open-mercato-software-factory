@@ -1,0 +1,40 @@
+import { runRouteMutationGuards } from '@open-mercato/shared/lib/crud/route-mutation-guard'
+import type { OpenApiRouteDoc } from '@open-mercato/shared/lib/openapi'
+import { z } from 'zod'
+import { withTaskRoute } from '../../../../../tasks/api/route-context'
+import { approveProductTask } from '../../../../lib/approve'
+import { GitHubClient, readGitHubConfigFromEnv } from '../../../../lib/github'
+
+const paramsSchema = z.object({ taskId: z.string().uuid() })
+
+export const metadata = { POST: { requireAuth: true, requireFeatures: ['tasks.delegate'] } }
+
+export async function POST(request: Request, route: { params: Promise<{ taskId: string }> }) {
+  return withTaskRoute(request, ['tasks.delegate'], async ({ commandContext, userId, tenantId, organizationId, userFeatures }) => {
+    const { taskId } = paramsSchema.parse(await route.params)
+    const guards = await runRouteMutationGuards({
+      container: commandContext.container, req: request,
+      auth: { userId, tenantId, organizationId, userFeatures },
+      input: { resourceKind: 'staff.timesheets.time_task', resourceId: taskId, operation: 'custom', mutationPayload: { taskId } },
+    })
+    if (!guards.ok) return guards.response
+    const result = await approveProductTask(commandContext, taskId, new GitHubClient(readGitHubConfigFromEnv()))
+    await guards.runAfterSuccess()
+    return Response.json(result)
+  })
+}
+
+const errorSchema = z.object({ error: z.string(), code: z.string().optional() })
+export const openApi: OpenApiRouteDoc = {
+  tag: 'Factory', summary: 'Approve the website pull request of a delegated task', methods: {
+    POST: {
+      summary: 'Merge the factory PR linked on the task and close the task as Done (assignee only)',
+      responses: [{ status: 200, description: 'Merged and closed', schema: z.object({ taskId: z.string().uuid(), prUrl: z.string(), merged: z.literal(true), alreadyMerged: z.boolean() }) }],
+      errors: [
+        { status: 403, description: 'Not the task assignee, or missing scope/feature', schema: errorSchema },
+        { status: 404, description: 'Task not found or not accessible', schema: errorSchema },
+        { status: 409, description: 'Not delegated, no PR, not in review, PR closed, or GitHub refused the merge', schema: errorSchema },
+      ],
+    },
+  },
+}
