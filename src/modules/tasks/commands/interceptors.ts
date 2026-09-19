@@ -22,7 +22,9 @@ async function rejection(code: 'process_owned' | 'process_only_column'): Promise
 }
 
 async function activeDelegations(em: EntityManager, scope: { tenantId: string; organizationId: string }, taskIds: readonly string[]): Promise<TaskDelegation[]> {
-  return taskIds.length ? em.find(TaskDelegation, { ...scope, taskId: { $in: [...taskIds] }, releasedAt: null }) : []
+  // Callers pass a TaskScope, which also carries userId; the delegation filter takes only tenant and organization.
+  const { tenantId, organizationId } = scope
+  return taskIds.length ? em.find(TaskDelegation, { tenantId, organizationId, taskId: { $in: [...taskIds] }, releasedAt: null }) : []
 }
 
 function readUndoTaskId(undoContext: { input: unknown; logEntry: unknown }): string | null {

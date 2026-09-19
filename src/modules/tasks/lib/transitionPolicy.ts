@@ -65,3 +65,15 @@ export function isAllowedProcessTransition(from: string, to: FactoryTaskColumn):
   if (from === to) return true
   return (PROCESS_TRANSITIONS[from as FactoryTaskColumn] ?? []).includes(to)
 }
+
+/**
+ * Whether a process reached a milestone. The orchestrator's `milestones_reached` column can hold a
+ * JSON-encoded string (`"[]"`) rather than an array, so both shapes are read.
+ */
+export function hasReachedMilestone(milestonesReached: unknown, key: string): boolean {
+  let list = milestonesReached
+  if (typeof list === 'string') {
+    try { list = JSON.parse(list) } catch { return false }
+  }
+  return Array.isArray(list) && list.some((milestone) => (milestone as { key?: unknown } | null)?.key === key)
+}

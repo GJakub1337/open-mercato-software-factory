@@ -105,12 +105,12 @@
     {
       "package": "@open-mercato/shared",
       "path": "src/lib/commands/transaction.ts",
-      "sha256": "cd20db1d10921ed6f21ebb4a6d03f0a5cee614521d7ceffaad86015505b62911"
+      "sha256": "e6efa36c6e60fa7cb80cfa3a3871539e6b340d42b0851fabff1c968552226494"
     },
     {
       "package": "@open-mercato/shared",
       "path": "dist/lib/commands/transaction.js",
-      "sha256": "363c01b620f7107eb26a7f43fc7c0f24813a5c8063023e9ede6747166d00cbbe"
+      "sha256": "0c91209ca62e4627b44e256d3c2ff8e966ac5cd83e0fa8326f5cc0627a75d51e"
     },
     {
       "package": "@open-mercato/shared",

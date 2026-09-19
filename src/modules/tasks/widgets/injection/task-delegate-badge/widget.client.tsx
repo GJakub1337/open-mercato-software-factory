@@ -8,7 +8,8 @@ export default function TaskDelegateBadge({ context }: { context?: { taskId?: st
   const { item, loading } = useTaskDelegation(context?.taskId)
   if (loading && !item) return <span className="h-4 w-16 animate-pulse rounded bg-muted" aria-label={t('tasks.loading')} />
   const delegation = item?.delegation
-  if (!delegation) return null
+  // An undelegated task (released without an outcome) is back in human hands: no run badge.
+  if (!delegation || (delegation.releasedAt && !delegation.outcome)) return null
   const variant = delegation.runState === 'failed' ? 'error' : delegation.runState === 'complete' ? 'success' : 'neutral'
   return <span title={delegation.closeReason ?? undefined}><StatusBadge variant={variant}>{delegation.runState ? t(`tasks.runState.${delegation.runState}`) : t('tasks.delegate.assigned')}</StatusBadge></span>
 }

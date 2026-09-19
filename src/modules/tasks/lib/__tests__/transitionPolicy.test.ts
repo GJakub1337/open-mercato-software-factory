@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals'
-import { evaluateHumanTaskMutation, mapProcessStatus } from '../transitionPolicy'
+import { evaluateHumanTaskMutation, hasReachedMilestone, mapProcessStatus } from '../transitionPolicy'
 
 describe('tasks transition policy', () => {
   it('maps workflow lifecycle statuses to staff columns', () => {
@@ -42,5 +42,15 @@ describe('tasks transition policy', () => {
       allowed: false,
       code: 'process_owned',
     })
+  })
+})
+
+describe('hasReachedMilestone', () => {
+  it('reads arrays and the JSON-encoded strings the orchestrator stores', () => {
+    expect(hasReachedMilestone([{ key: 'sized' }], 'sized')).toBe(true)
+    expect(hasReachedMilestone('[{"key":"sized"}]', 'sized')).toBe(true)
+    expect(hasReachedMilestone('[]', 'sized')).toBe(false)
+    expect(hasReachedMilestone(null, 'sized')).toBe(false)
+    expect(hasReachedMilestone('not json', 'sized')).toBe(false)
   })
 })

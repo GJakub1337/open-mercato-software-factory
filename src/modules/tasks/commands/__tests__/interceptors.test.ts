@@ -12,7 +12,7 @@ function harness(options?: { active?: boolean; from?: string; to?: string }) {
     taskStatusId: 'status-id', statusSlug: options?.from ?? 'in-progress', isDone: false,
     assigneeStaffMemberId: 'member-id', assigneeUserId: 'human-id', childTaskIds: [],
   }))
-  const em = { find: jest.fn(async () => options?.active === false ? [] : [{ id: DELEGATION_ID, taskId: TASK_ID }]) }
+  const em = { find: jest.fn(async (_entity: unknown, _where: unknown) => options?.active === false ? [] : [{ id: DELEGATION_ID, taskId: TASK_ID }]) }
   const rbacService = { userHasAllFeatures: jest.fn(async () => true) }
   const container = {
     resolve: jest.fn((name: string) => {
@@ -38,6 +38,18 @@ describe('tasks process-owned interceptors', () => {
       commandId: interceptor.targetCommand, auth: commandContext.auth, selectedOrganizationId: 'org-id',
       container: commandContext.container, commandContext,
     })).resolves.toMatchObject({ ok: false, status: 409, body: { code: 'process_owned' } })
+  })
+
+  it('filters delegations by tenant and organization only, never by the acting user', async () => {
+    const { commandContext, em } = harness()
+    const interceptor = interceptors.find((item) => item.targetCommand === 'staff.timesheets.tasks.delete')!
+    await interceptor.beforeExecute?.({ id: TASK_ID }, {
+      commandId: interceptor.targetCommand, auth: commandContext.auth, selectedOrganizationId: 'org-id',
+      container: commandContext.container, commandContext,
+    })
+    expect(em.find).toHaveBeenCalledWith(expect.anything(), {
+      tenantId: 'tenant-id', organizationId: 'org-id', taskId: { $in: [TASK_ID] }, releasedAt: null,
+    })
   })
 
   it('resolves undo target from the audit resource instead of commandPayload.id', async () => {

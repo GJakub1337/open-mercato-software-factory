@@ -4447,7 +4447,7 @@ __metadata:
 
 "@open-mercato/shared@patch:@open-mercato/shared@npm%3A0.8.0#~/.yarn/patches/@open-mercato-shared-npm-0.8.0-8155f21d7b.patch":
   version: 0.8.0
-  resolution: "@open-mercato/shared@patch:@open-mercato/shared@npm%3A0.8.0#~/.yarn/patches/@open-mercato-shared-npm-0.8.0-8155f21d7b.patch::version=0.8.0&hash=e3c241"
+  resolution: "@open-mercato/shared@patch:@open-mercato/shared@npm%3A0.8.0#~/.yarn/patches/@open-mercato-shared-npm-0.8.0-8155f21d7b.patch::version=0.8.0&hash=6306d6"
   dependencies:
     "@mikro-orm/core": "npm:^7.1.14"
     "@mikro-orm/decorators": "npm:^7.1.14"
@@ -4464,7 +4464,7 @@ __metadata:
     reflect-metadata: "npm:^0.2.2"
     sanitize-html: "npm:2.17.5"
     undici: "npm:^8.9.0"
-  checksum: 10c0/b0a4ebfd4a4150d4b2c4ce4946a4bd6a5601c4558c8b1813b0d2d1aff3f14c6aa53a7b77122e4127932ad9a99535156a0c0bed62786ff42549083558c166c620
+  checksum: 10c0/b03130d2074bd2ab844afb60aac301a011b14a3a558b4ec68f575eca426460d6ad6d22931378e39fc0625bc0814a07aa29430abcee65241f616eee8610afde39
   languageName: node
   linkType: hard
 

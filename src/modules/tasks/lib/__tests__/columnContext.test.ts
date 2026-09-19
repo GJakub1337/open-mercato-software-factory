@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals'
+import { describe, expect, it, jest } from '@jest/globals'
 import type { CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
 import { authorizeInternalTaskTransition, consumeInternalTaskTransition, rememberCreatedTaskColumn, createdTaskColumnSlug } from '../columnContext'
 
@@ -15,5 +15,16 @@ describe('tasks transaction-local column context', () => {
     expect(consumeInternalTaskTransition(context, 'task-id', 'in-design')).toBe(false)
     expect(consumeInternalTaskTransition(context, 'task-id', 'queued')).toBe(true)
     expect(consumeInternalTaskTransition(context, 'task-id', 'queued')).toBe(false)
+  })
+
+  it('shares authorizations between separately bundled copies of the module', () => {
+    // Generated bundles inline this file into both the commands and the interceptors output.
+    let commandsCopy!: typeof import('../columnContext')
+    let interceptorsCopy!: typeof import('../columnContext')
+    jest.isolateModules(() => { commandsCopy = require('../columnContext') })
+    jest.isolateModules(() => { interceptorsCopy = require('../columnContext') })
+    expect(commandsCopy).not.toBe(interceptorsCopy)
+    commandsCopy.authorizeInternalTaskTransition(context, 'bundled-task', 'queued')
+    expect(interceptorsCopy.consumeInternalTaskTransition(context, 'bundled-task', 'queued')).toBe(true)
   })
 })

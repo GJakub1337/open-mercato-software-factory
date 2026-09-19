@@ -17,11 +17,16 @@ const payload = {
   tenantId: 'tenant-id', organizationId: 'org-id',
 }
 
-function context() {
+// The shape the event bus passes: `resolve` only, no `hasRegistration`.
+function context(registered: readonly string[] = ['ProcessDefinition', 'AgentPrincipal']) {
   const em = { fork: () => ({ flush: async () => undefined }) }
   return {
-    hasRegistration: () => true,
-    resolve: (name: string) => name === 'em' ? em : { execute },
+    resolve: (name: string) => {
+      if (name === 'em') return em
+      if (name === 'commandBus') return { execute }
+      if (registered.includes(name)) return {}
+      throw new Error(`Could not resolve '${name}'`)
+    },
   }
 }
 
@@ -60,4 +65,9 @@ it('ignores a non-factory event', async () => {
 it('keeps the persistent event retryable when the required process is absent', async () => {
   findOne.mockImplementation(async (entity) => entity === TaskDelegation ? { id: payload.delegationId } : entity === AgentPrincipal ? { id: 'principal' } : null)
   await expect(startFactory(payload, context() as never)).rejects.toThrow('factory.deliver is unavailable')
+})
+
+it('fails retryably when the orchestrator is not installed', async () => {
+  await expect(startFactory(payload, context([]) as never)).rejects.toThrow('factory orchestrator is unavailable')
+  expect(execute).not.toHaveBeenCalled()
 })

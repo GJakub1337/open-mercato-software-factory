@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterCommandCommit, isManagedCommandTransaction, runInCommandTransaction } from '@open-mercato/shared/lib/commands'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -31,4 +31,10 @@ await runInCommandTransaction(context, async (managed) => {
   await afterCommandCommit(managed, () => { effects.push('effect') })
 })
 assert.deepEqual(effects, ['begin', 'commit', 'effect'])
+// Next inlines shared into several server chunks; a second module instance must see the same registry.
+const transactionPath = resolve(dirname(require.resolve('@open-mercato/shared/lib/commands')), 'transaction.js')
+const bundledCopy = await import(`${pathToFileURL(transactionPath).href}?bundled-copy`)
+await runInCommandTransaction(context, async (managed) => {
+  assert.ok(bundledCopy.isManagedCommandTransaction(managed), 'A duplicated shared module must share the command transaction registry')
+})
 console.log(`Verified ${manifest.files.length} installed source/runtime files and compiled transaction lifecycle (${manifest.sourceCommit}).`)
