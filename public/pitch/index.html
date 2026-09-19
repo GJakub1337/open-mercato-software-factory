@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Pitch · Fabryka oprogramowania na Open Mercato</title>
+<!--
+  Pitch deck for the HackOn demo (SPEC-004). One file, no dependencies, served by the app at
+  /pitch/index.html so it is the first tab of the demo window.
+  Keys: → / Space / PageDown next · ← / PageUp previous · Home / End · F fullscreen ·
+        B black screen · N presenter window (notes, next slide, timer) · P print to PDF.
+  Slides with data-backup are Q&A material after the closing slide.
+-->
+<style>
+  @font-face { font-family: "Barlow Condensed"; font-weight: 600; font-display: block;
+    src: url(fonts/barlow-condensed-latin-600-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122, U+2190-21FF; }
+  @font-face { font-family: "Barlow Condensed"; font-weight: 600; font-display: block;
+    src: url(fonts/barlow-condensed-latin-ext-600-normal.woff2) format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF; }
+  @font-face { font-family: "Barlow Condensed"; font-weight: 800; font-display: block;
+    src: url(fonts/barlow-condensed-latin-800-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122, U+2190-21FF; }
+  @font-face { font-family: "Barlow Condensed"; font-weight: 800; font-display: block;
+    src: url(fonts/barlow-condensed-latin-ext-800-normal.woff2) format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF; }
+  @font-face { font-family: "Barlow"; font-weight: 400; font-display: block;
+    src: url(fonts/barlow-latin-400-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122, U+2190-21FF; }
+  @font-face { font-family: "Barlow"; font-weight: 400; font-display: block;
+    src: url(fonts/barlow-latin-ext-400-normal.woff2) format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF; }
+  @font-face { font-family: "Barlow"; font-weight: 500; font-display: block;
+    src: url(fonts/barlow-latin-500-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122, U+2190-21FF; }
+  @font-face { font-family: "Barlow"; font-weight: 500; font-display: block;
+    src: url(fonts/barlow-latin-ext-500-normal.woff2) format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF; }
+  @font-face { font-family: "JetBrains Mono"; font-weight: 500; font-display: block;
+    src: url(fonts/jetbrains-mono-latin-500-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122, U+2190-21FF; }
+  @font-face { font-family: "JetBrains Mono"; font-weight: 500; font-display: block;
+    src: url(fonts/jetbrains-mono-latin-ext-500-normal.woff2) format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF; }
+
+  :root {
+    --bg: #0a141d;
+    --panel: #122130;
+    --panel-2: #183044;
+    --line: #2a4256;
+    --steel: #93a5b5;
+    --steel-dim: #62788b;
+    --text: #eef3f7;
+    --accent: #f07a22;        /* Stal-Zbiorniki orange: only where a human decides */
+    --accent-ink: #1a0c02;
+    --ok: #3ecf8e;
+    --display: "Barlow Condensed", "DIN Condensed", "Arial Narrow", sans-serif;
+    --body: "Barlow", "Helvetica Neue", Arial, sans-serif;
+    --mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #000; overflow: hidden; }
+  body { font-family: var(--body); color: var(--text); -webkit-font-smoothing: antialiased; }
+
+  /* 1920×1080 stage, scaled to fit the window */
+  #deck { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px;
+    transform-origin: center center; }
+  .slide { position: absolute; inset: 0; padding: 96px 120px 120px; display: none;
+    flex-direction: column; overflow: hidden;
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.012) 0 2px, transparent 2px 7px),
+      radial-gradient(1400px 900px at 85% -10%, #16293a 0%, var(--bg) 60%); }
+  .slide.active { display: flex; }
+  .notes { display: none; }
+
+  /* chrome: nameplate rivets + footer */
+  .slide::before, .slide::after { content: ""; position: absolute; width: 14px; height: 14px;
+    border-radius: 50%; background: radial-gradient(circle at 35% 35%, #7d8f9f, #2c3e4e 70%);
+    top: 36px; box-shadow: 0 1px 0 rgba(0,0,0,.6); }
+  .slide::before { left: 36px; } .slide::after { right: 36px; }
+  .foot { position: absolute; left: 120px; right: 120px; bottom: 48px; display: flex;
+    justify-content: space-between; font: 500 22px/1 var(--mono); color: var(--steel-dim);
+    letter-spacing: .08em; text-transform: uppercase; }
+
+  h1, h2, .display { font-family: var(--display); font-weight: 800; text-transform: uppercase;
+    letter-spacing: .005em; line-height: .92; }
+  h1 { font-size: 168px; }
+  h2 { font-size: 104px; margin-bottom: 56px; }
+  .kicker { font: 500 26px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+    color: var(--steel); margin-bottom: 36px; display: flex; align-items: center; gap: 18px; }
+  .kicker::before { content: ""; width: 48px; height: 4px; background: var(--accent); }
+  .lead { font-size: 44px; line-height: 1.3; color: var(--steel); max-width: 1400px; }
+  .accent { color: var(--accent); }
+  .mono { font-family: var(--mono); font-weight: 500; }
+  strong { font-weight: 500; color: var(--text); }
+
+  /* 1 — title */
+  .title { justify-content: center; }
+  .title h1 .line2 { color: var(--accent); display: block; }
+  .title .lead { margin-top: 64px; }
+
+  /* 2 — hook */
+  .hook { flex-direction: row; gap: 72px; align-items: stretch; padding-top: 96px; }
+  .plate { width: 600px; flex: none; background: linear-gradient(160deg, #b9c6d1, #7d8e9c 55%, #aebbc6);
+    color: #0d1822; border-radius: 10px; padding: 44px 48px; position: relative;
+    box-shadow: inset 0 0 0 3px rgba(255,255,255,.35), inset 0 0 0 10px rgba(0,0,0,.08), 0 30px 60px rgba(0,0,0,.45);
+    display: flex; flex-direction: column; }
+  .plate .rv { position: absolute; width: 16px; height: 16px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #eef2f5, #5c6d7b 75%); }
+  .plate .rv:nth-child(1) { top: 16px; left: 16px; } .plate .rv:nth-child(2) { top: 16px; right: 16px; }
+  .plate .rv:nth-child(3) { bottom: 16px; left: 16px; } .plate .rv:nth-child(4) { bottom: 16px; right: 16px; }
+  .plate .name { font: 800 120px/.9 var(--display); text-transform: uppercase; }
+  .plate .role { font: 600 34px/1.15 var(--display); text-transform: uppercase; margin: 10px 0 30px;
+    letter-spacing: .02em; }
+  .plate dl { display: grid; grid-template-columns: auto 1fr; border-top: 3px solid #0d1822; }
+  .plate dt, .plate dd { font: 500 26px/1 var(--mono); padding: 17px 0; border-bottom: 1.5px solid rgba(13,24,34,.45); }
+  .plate dt { text-transform: uppercase; letter-spacing: .06em; padding-right: 28px; color: #2d3e4c; }
+  .plate dd { text-align: right; }
+  .plate .zero { margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end;
+    font: 500 26px/1 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: #2d3e4c; }
+  .plate .zero b { font: 800 190px/.78 var(--display); color: #b3261a; }
+  .hook-right { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .hook-right h2 { font-size: 80px; margin-bottom: 32px; }
+  .shot { position: relative; border-radius: 10px; overflow: hidden; border: 2px solid var(--line);
+    box-shadow: 0 30px 60px rgba(0,0,0,.5); }
+  .shot img { display: block; width: 100%; height: 480px; object-fit: cover; object-position: 50% 0; }
+  .stamp { position: absolute; font: 800 40px/1 var(--display); text-transform: uppercase;
+    color: #d6331f; border: 5px solid #d6331f; padding: 10px 18px 6px; border-radius: 6px;
+    background: rgba(255,255,255,.82); transform: rotate(-9deg); letter-spacing: .03em;
+    box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+  .stamp small { display: block; font: 500 20px/1.2 var(--mono); letter-spacing: 0; text-transform: none; margin-top: 4px; }
+  .pains { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-top: 32px; }
+  .pain { border-top: 4px solid var(--steel-dim); padding-top: 18px; font-size: 30px; line-height: 1.2; color: var(--steel); }
+  .pain b { display: block; font: 800 50px/1 var(--display); text-transform: uppercase; color: var(--text); margin-bottom: 8px; }
+
+  /* 3 — map */
+  .flow { display: grid; grid-template-columns: 1fr 64px 1fr 64px 1.12fr 64px 1fr 64px 1fr;
+    align-items: stretch; margin-top: 8px; }
+  .node { background: var(--panel); border: 2px solid var(--line); border-radius: 10px;
+    padding: 30px 28px; display: flex; flex-direction: column; gap: 16px; min-height: 330px; }
+  .node .n { font: 500 22px/1 var(--mono); color: var(--steel-dim); letter-spacing: .1em; }
+  .node .t { font: 800 50px/.95 var(--display); text-transform: uppercase; }
+  .node .d { font-size: 28px; line-height: 1.3; color: var(--steel); }
+  .node.human { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .node.human .n, .node.human .d { color: rgba(26,12,2,.78); }
+  .node.live .t { color: var(--ok); }
+  .arrow { display: flex; align-items: center; justify-content: center; }
+  .arrow svg { width: 44px; height: 44px; }
+  .thesis { margin-top: 64px; display: flex; align-items: baseline; gap: 36px; }
+  .thesis .display { font-size: 96px; }
+  .scenes { margin-top: auto; display: flex; gap: 20px; font: 500 26px/1 var(--mono);
+    color: var(--steel); padding-bottom: 28px; }
+  .scenes span { border: 2px solid var(--line); border-radius: 999px; padding: 14px 24px; }
+  .scenes span b { color: var(--accent); font-weight: 500; margin-right: 10px; }
+  .scenes .label { border: none; padding-left: 0; color: var(--steel-dim); }
+
+  /* 4 — numbers */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; }
+  .stat { border-top: 6px solid var(--steel-dim); padding-top: 28px; }
+  .stat.human { border-top-color: var(--accent); }
+  .stat .v { font: 800 190px/.85 var(--display); letter-spacing: -.01em; white-space: nowrap; }
+  .stat .v small { font-size: .42em; margin-left: 8px; color: var(--steel); }
+  .stat .k { font-size: 32px; line-height: 1.25; color: var(--steel); margin-top: 24px; }
+  .fine { margin-top: auto; padding-bottom: 28px; font: 500 24px/1.5 var(--mono); color: var(--steel-dim); }
+
+  /* 5 — next */
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  .card { background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: 34px 36px; }
+  .card .t { font: 800 52px/.95 var(--display); text-transform: uppercase; margin-bottom: 16px; }
+  .card .d { font-size: 29px; line-height: 1.32; color: var(--steel); }
+  .card.hot { border-color: var(--accent); }
+  .card.hot .t { color: var(--accent); }
+  .punch { margin-top: auto; padding-bottom: 20px; font: 800 76px/1 var(--display); text-transform: uppercase; }
+  .punch .dim { color: var(--steel-dim); }
+
+  /* 6 — close */
+  .close { justify-content: center; }
+  .close h1 { font-size: 200px; }
+  .repo { margin-top: 72px; font: 500 40px/1 var(--mono); color: var(--text);
+    border: 2px solid var(--line); border-radius: 10px; padding: 30px 36px; align-self: flex-start; }
+  .repo span { color: var(--steel-dim); }
+
+  /* backup */
+  .slide[data-backup] { background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.012) 0 2px, transparent 2px 7px), #0c1720; }
+  .arch { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 28px; flex: 1; }
+  .col { background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: 34px; }
+  .col h3 { font: 800 50px/1 var(--display); text-transform: uppercase; margin-bottom: 8px; }
+  .col .sub { font: 500 22px/1.3 var(--mono); color: var(--steel-dim); margin-bottom: 26px; }
+  .col ul { list-style: none; }
+  .col li { font-size: 29px; line-height: 1.28; color: var(--steel); padding: 13px 0; border-top: 1.5px solid var(--line); }
+  .col li b { color: var(--text); font-weight: 500; }
+  .col.core { border-color: var(--steel-dim); background: var(--panel-2); }
+  .invariant { margin-top: 32px; font-size: 34px; line-height: 1.3; padding: 26px 32px; border-left: 6px solid var(--accent); background: var(--panel); border-radius: 0 10px 10px 0; margin-bottom: 24px; }
+  table.cmp { width: 100%; border-collapse: collapse; }
+  table.cmp th, table.cmp td { text-align: left; padding: 26px 24px; border-bottom: 2px solid var(--line); font-size: 34px; line-height: 1.25; vertical-align: top; }
+  table.cmp th { font: 500 24px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--steel-dim); }
+  table.cmp td:first-child { font: 800 44px/1 var(--display); text-transform: uppercase; width: 22%; }
+  table.cmp td:nth-child(2) { color: var(--steel); }
+  table.cmp td:nth-child(3) { color: var(--text); }
+  table.cmp th:nth-child(3) { color: var(--accent); }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 48px 64px; margin-top: 16px; }
+  .checks div { font-size: 36px; line-height: 1.3; color: var(--steel); padding-left: 52px; position: relative; }
+  .checks div::before { content: ""; position: absolute; left: 0; top: 10px; width: 26px; height: 14px;
+    border-left: 5px solid var(--ok); border-bottom: 5px solid var(--ok); transform: rotate(-45deg); }
+  .checks b { color: var(--text); font-weight: 500; display: block; }
+  .video { flex: 1; display: flex; align-items: center; justify-content: center; border: 2px dashed var(--line);
+    border-radius: 10px; background: #000; overflow: hidden; margin-bottom: 20px; }
+  .video video { width: 100%; height: 100%; object-fit: contain; }
+  .video .missing { font: 500 28px/1.5 var(--mono); color: var(--steel-dim); text-align: center; }
+
+  /* blackout + progress */
+  #black { position: fixed; inset: 0; background: #000; display: none; z-index: 10; }
+  body.black #black { display: block; }
+  #progress { position: fixed; left: 0; bottom: 0; height: 4px; background: var(--accent); z-index: 5; transition: width .2s; }
+
+  /* presenter window */
+  body.presenter { background: #0b0f13; overflow: auto; }
+  body.presenter #deck, body.presenter #progress { display: none; }
+  #pv { display: none; }
+  body.presenter #pv { display: grid; grid-template-columns: 1.35fr 1fr; grid-template-rows: auto 1fr; gap: 20px;
+    padding: 24px; height: 100vh; }
+  .pv-bar { grid-column: 1 / -1; display: flex; gap: 32px; align-items: center; font: 500 22px/1 var(--mono); color: var(--steel); }
+  .pv-bar .clock { font-size: 44px; color: var(--text); }
+  .pv-bar .clock.over { color: #ff6b5a; }
+  .pv-bar button { font: inherit; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 10px 16px; cursor: pointer; }
+  .pv-mini { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid var(--line); border-radius: 6px; background: #000; }
+  .pv-mini > .slide { display: flex; width: 1920px; height: 1080px; transform-origin: 0 0; }
+  .pv-left { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+  .pv-right { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+  .pv-label { font: 500 18px/1 var(--mono); color: var(--steel-dim); text-transform: uppercase; letter-spacing: .1em; }
+  .pv-notes { font: 400 30px/1.45 var(--body); color: var(--text); overflow: auto; background: #10171e; border-radius: 6px; padding: 24px 28px; flex: 1; }
+  .pv-notes p { margin-bottom: .7em; } .pv-notes em { color: var(--steel); }
+
+  @media print {
+    @page { size: 1920px 1080px; margin: 0; }
+    html, body { overflow: visible; height: auto; background: none; }
+    #deck { position: static; transform: none !important; }
+    .slide { display: flex !important; position: relative; page-break-after: always; break-after: page; width: 1920px; height: 1080px; }
+    #progress, #black { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="deck">
+
+  <!-- 1 · TITLE -->
+  <section class="slide title" data-title="Tytuł">
+    <div class="kicker">Open Mercato HackOn · Fabryka oprogramowania</div>
+    <h1>Marek nie ma programisty.<span class="line2">Ma Open Mercato.</span></h1>
+    <p class="lead">Zmiana w firmie staje się zadaniem, agent robi z niego zmianę na stronie, a&nbsp;człowiek ją zatwierdza jednym kliknięciem.</p>
+    <aside class="notes">
+      <p><em>0:00–0:05 · Nie czytamy slajdu. Od razu przechodzimy do Marka.</em></p>
+      <p>„Opowiemy wam o jednej firmie i o jednym człowieku.”</p>
+    </aside>
+  </section>
+
+  <!-- 2 · HOOK -->
+  <section class="slide hook" data-title="Hook: Marek">
+    <div class="plate">
+      <i class="rv"></i><i class="rv"></i><i class="rv"></i><i class="rv"></i>
+      <div class="name">Marek</div>
+      <div class="role">Właściciel<br>Stal-Zbiorniki Sp. z o.o.</div>
+      <dl>
+        <dt>Od</dt><dd>2008</dd>
+        <dt>Gdzie</dt><dd>Kobierzyce</dd>
+        <dt>Ludzie</dt><dd>35 osób</dd>
+        <dt>Klienci</dt><dd>20+ zakładów</dd>
+      </dl>
+      <div class="zero"><span>Programiści</span><b>0</b></div>
+    </div>
+    <div class="hook-right">
+      <h2>Strona mówi co innego niż&nbsp;magazyn</h2>
+      <div class="shot">
+        <img src="img/site-od-reki.png" alt="Sekcja „Zbiorniki od ręki” na stronie Stal-Zbiorniki: trzy karty produktów">
+        <div class="stamp" style="left: 36px; top: 175px;">Sprzedany wczoraj<small>a wciąż „od ręki”</small></div>
+        <div class="stamp" style="left: 400px; top: 318px; transform: rotate(5deg);">5000 l?<small>naprawdę 5200 l</small></div>
+      </div>
+      <div class="pains">
+        <div class="pain"><b>W Excelu</b>oferty, ceny i&nbsp;parametry w&nbsp;trzech miejscach</div>
+        <div class="pain"><b>2 tygodnie</b>na każdą zmianę w&nbsp;agencji, za&nbsp;każdą faktura</div>
+        <div class="pain"><b>Cała firma</b>katalog, sprzedaż i&nbsp;ludzie już są w&nbsp;Open Mercato</div>
+      </div>
+    </div>
+    <aside class="notes">
+      <p><em>0:05–0:35</em></p>
+      <p>„To jest Marek. Produkuje zbiorniki stalowe pod Wrocławiem. 35 osób, zero programistów.”</p>
+      <p>„Wczoraj sprzedał ten zbiornik, a na stronie wciąż jest ‘od ręki’. Obok zbiornik opisany jako 5000 litrów. Ma 5200.”</p>
+      <p>„Każda poprawka to mail do agencji i dwa tygodnie czekania. A cała jego firma, katalog, sprzedaż i ludzie, już żyje w Open Mercato.”</p>
+    </aside>
+  </section>
+
+  <!-- 3 · MAP -->
+  <section class="slide" data-title="Mapa">
+    <div class="kicker">Jak to działa</div>
+    <div class="flow">
+      <div class="node"><span class="n">01</span><span class="t">Zmiana w firmie</span><span class="d">nowy produkt, poprawka, zrealizowane zamówienie</span></div>
+      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#62788b" stroke-width="2.5"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
+      <div class="node"><span class="n">02</span><span class="t">Zadanie</span><span class="d">na tablicy, przypisane do agenta</span></div>
+      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#62788b" stroke-width="2.5"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
+      <div class="node"><span class="n">03</span><span class="t">Agent proponuje</span><span class="d">zmianę rekordu albo PR z&nbsp;podglądem strony</span></div>
+      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#f07a22" stroke-width="2.5"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
+      <div class="node human"><span class="n">04 · Człowiek</span><span class="t">Marek zatwierdza</span><span class="d">widzi „przed → po” i podgląd, nigdy kodu</span></div>
+      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#62788b" stroke-width="2.5"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
+      <div class="node live"><span class="n">05</span><span class="t">Na żywo</span><span class="d">rekord zmieniony, strona opublikowana, zadanie Done</span></div>
+    </div>
+    <div class="thesis"><span class="display">Start w&nbsp;systemie firmy, <span class="accent">nie w&nbsp;repo.</span></span></div>
+    <div class="scenes">
+      <span class="label">Zaraz zobaczycie:</span>
+      <span><b>1</b>Poprawa rekordu</span>
+      <span><b>2</b>Katalog → strona</span>
+      <span><b>3</b>Sprzedaż → referencja</span>
+    </div>
+    <aside class="notes">
+      <p><em>0:35–0:45 · Slajd zostaje na ekranie, kiedy przełączamy się na kartę z tablicą zadań.</em></p>
+      <p>„Więc niech strona zmienia się tam, gdzie zmienia się firma. Zmiana w katalogu albo w zamówieniu staje się zadaniem. Agent proponuje zmianę, a Marek ją zatwierdza. Kodu nie czyta nigdy. Zobaczmy.”</p>
+      <p><em>LIVE 0:45–4:15: scena 2 (ZDP-5000), scena 3 (ZWM-1500 → PR → „Zatwierdź i opublikuj”), scena 3b (Park of Poland → Realizacje). Mówimy „zbiornik” i „zadanie”, nigdy „encja” ani „workflow”. Scena 2 niegotowa? Jej czas idzie na scenę 3.</em></p>
+    </aside>
+  </section>
+
+  <!-- 4 · NUMBERS -->
+  <section class="slide" data-title="Liczby z próby">
+    <div class="kicker">Zmierzone na próbie, nie oszacowane</div>
+    <h2>Ile to kosztowało</h2>
+    <div class="stats">
+      <div class="stat"><div class="v">144<small>s</small></div><div class="k">od zadania do PR z&nbsp;podglądem strony</div></div>
+      <div class="stat"><div class="v">0,25<small>$</small></div><div class="k">koszt modelu za całe uruchomienie</div></div>
+      <div class="stat human"><div class="v accent">1</div><div class="k">kliknięcie Marka, żeby opublikować</div></div>
+      <div class="stat"><div class="v">0</div><div class="k">linii kodu, które Marek musiał przeczytać</div></div>
+    </div>
+    <p class="fine">Próba 19.09.2026 · agent: OpenCode w&nbsp;jednorazowym kontenerze · model: Claude Sonnet 4.5 (OpenRouter)<br>check <span style="color: var(--ok)">site</span> zielony: build + Playwright na zbudowanej stronie · podgląd na Vercelu dla każdego PR</p>
+    <aside class="notes">
+      <p><em>4:15–4:30 · Wracamy z demo na tę kartę.</em></p>
+      <p>„To, co widzieliście, na próbie trwało 144 sekundy i kosztowało 25 centów. Check zielony, strona zbudowana i przeklikana przez testy, zanim Marek w ogóle ją zobaczył.”</p>
+      <p><em>Jeśli próba generalna w niedzielę da inne liczby, podmieniamy je tutaj.</em></p>
+    </aside>
+  </section>
+
+  <!-- 5 · NEXT -->
+  <section class="slide" data-title="Co dalej">
+    <div class="kicker">Co dalej</div>
+    <h2>Ten sam proces, więcej&nbsp;wejść</h2>
+    <div class="grid3">
+      <div class="card hot"><div class="t">Merge bez kliku</div><div class="d">dla zmian niskiego ryzyka, np. nowa strona produktu. Regulamin zawsze czeka na prawnika.</div></div>
+      <div class="card"><div class="t">Zgoda klienta</div><div class="d">Open Mercato wysyła maila z prośbą o logo i czyta odpowiedź. PR dopiero po „tak”.</div></div>
+      <div class="card"><div class="t">InboxOps</div><div class="d">mail z zapytaniem ofertowym staje się zadaniem dopasowanym do katalogu.</div></div>
+      <div class="card"><div class="t">WordPress</div><div class="d">i każda inna strona. Zmienia się cel, kontrakt agenta zostaje ten sam.</div></div>
+      <div class="card"><div class="t">Sentry i GitHub</div><div class="d">alert albo issue od razu jako zadanie dla agenta, z&nbsp;tym samym zatwierdzeniem.</div></div>
+      <div class="card"><div class="t">Koszt na zadanie</div><div class="d">orkiestrator zapisuje koszt i ślad każdego uruchomienia; poprawki ludzi stają się ewaluacjami.</div></div>
+    </div>
+    <p class="punch"><span class="dim">Linear i Copilot widzą repo.</span> My widzimy firmę.</p>
+    <aside class="notes">
+      <p><em>4:30–5:00</em></p>
+      <p>„Dziś każdy merge to jeden klik Marka. Jutro zmiany niskiego ryzyka, jak nowa strona produktu, pójdą same, a regulamin zawsze poczeka na prawnika.”</p>
+      <p>„To samo działa dla maili od klientów, dla WordPressa, dla alertów z Sentry.”</p>
+      <p>„Linear i Copilot widzą repo. My widzimy firmę. Dziękujemy.”</p>
+    </aside>
+  </section>
+
+  <!-- 6 · CLOSE -->
+  <section class="slide close" data-title="Dziękujemy">
+    <div class="kicker">Pytania</div>
+    <h1>Dziękujemy.</h1>
+    <div class="repo"><span>github.com/</span>jtomaszewski/open-mercato-software-factory</div>
+    <p class="lead" style="margin-top: 40px;">Open Mercato (MIT) + Agent Orchestrator (enterprise, source-available). Nasze moduły to zwykłe moduły Open Mercato.</p>
+    <aside class="notes">
+      <p><em>Q&A 3:00. Slajdy zapasowe są dalej (→): architektura, porównanie z Linear/Copilot, bezpieczeństwo, nagranie.</em></p>
+      <p><b>Agent się myli?</b> Proponuje, zanim działa. Marek widzi „przed → po”, nieaktualna propozycja kończy się konfliktem zamiast nadpisać dane, a kod wychodzi tylko jako PR z podglądem.</p>
+      <p><b>Czemu Marek musi klikać?</b> Dziś każdy merge to jeden klik. Merge bez człowieka dla niskiego ryzyka jest zaprojektowany, tekst prawny nigdy się w nim nie mieści.</p>
+      <p><b>Logo Suntago bez pytania?</b> W demo tak, na stronie z noindex. W procesie jest miejsce na zgodę mailem.</p>
+      <p><b>Kto odpowiada?</b> Człowiek przypisany do zadania. Agent jest delegatem, każda akcja jest w logu audytu pod osobą, która ją zatwierdziła.</p>
+      <p><b>Open source?</b> Open Mercato MIT. Agent Orchestrator: darmowy lokalnie, produkcja wymaga licencji enterprise.</p>
+    </aside>
+  </section>
+
+  <!-- B1 · ARCHITECTURE -->
+  <section class="slide" data-backup data-title="Architektura">
+    <div class="kicker">Zapas · Architektura</div>
+    <h2 style="font-size: 88px; margin-bottom: 40px;">Trzy warstwy, jedna zasada</h2>
+    <div class="arch">
+      <div class="col">
+        <h3>Open Mercato</h3><div class="sub">system firmy</div>
+        <ul>
+          <li><b>Katalog, sprzedaż, klienci</b>: źródło zdarzeń</li>
+          <li><b>Tablica zadań</b>: „wszystko jest zadaniem”</li>
+          <li><b>Przypisz do agenta</b>: ten sam wybór co dla osoby</li>
+        </ul>
+      </div>
+      <div class="col core">
+        <h3>Agent Orchestrator</h3><div class="sub">plan sterowania</div>
+        <ul>
+          <li><b>Proces</b> uruchamiany zdarzeniem, harmonogramem albo ręcznie</li>
+          <li><b>Agenci tylko proponują</b>; decyzje czekają w&nbsp;Caseload</li>
+          <li><b>Ślad i koszt</b> każdego uruchomienia; poprawki → ewaluacje</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>Developer</h3><div class="sub">wykonawca</div>
+        <ul>
+          <li><b>OpenCode</b> w&nbsp;jednorazowym kontenerze</li>
+          <li><b>PR + podgląd</b> na Vercelu, check <span style="color: var(--ok)">site</span></li>
+          <li><b>Merge</b> dopiero po kliknięciu człowieka</li>
+        </ul>
+      </div>
+    </div>
+    <div class="invariant">Agent nigdy sam nie zmienia danych. <strong>Proponuje</strong>, człowiek albo polityka <strong class="accent">decyduje</strong>, dopiero wtedy system <strong>wykonuje</strong>.</div>
+    <aside class="notes"><p>Niezmiennik orkiestratora to bramka WSFF przesunięta z diffu na projekt: człowiek przegląda plan, nie kod.</p></aside>
+  </section>
+
+  <!-- B2 · WHY NOT -->
+  <section class="slide" data-backup data-title="Dlaczego nie Linear/Copilot">
+    <div class="kicker">Zapas · Dlaczego nie agenci Linear, Jira albo Copilot</div>
+    <h2 style="font-size: 88px; margin-bottom: 40px;">Oni widzą repo. My widzimy firmę.</h2>
+    <table class="cmp">
+      <tr><th></th><th>Agenci w repo</th><th>Fabryka na Open Mercato</th></tr>
+      <tr><td>Start</td><td>ticket albo prompt programisty</td><td>nowy produkt, zrealizowane zamówienie, poprawka rekordu</td></tr>
+      <tr><td>Dane</td><td>tylko to, co jest w&nbsp;kodzie</td><td>katalog, klienci, zamówienia i&nbsp;to, co agent pobierze z&nbsp;sieci</td></tr>
+      <tr><td>Kto zatwierdza</td><td>programista czyta diff</td><td>właściciel ogląda podgląd; prawnik tylko przy tekście prawnym</td></tr>
+      <tr><td>Wynik</td><td>PR</td><td>PR, zmiana rekordu albo wiadomość, zawsze podpięte do zadania</td></tr>
+    </table>
+    <aside class="notes"><p>„Widzą repo, a nie biznes. Tutaj zadanie zaczyna się od dodania produktu albo zrealizowania zamówienia.”</p></aside>
+  </section>
+
+  <!-- B3 · SAFETY -->
+  <section class="slide" data-backup data-title="Bezpieczeństwo">
+    <div class="kicker">Zapas · Co jeśli agent się myli</div>
+    <h2 style="font-size: 88px; margin-bottom: 48px;">Bezpieczne z&nbsp;założenia</h2>
+    <div class="checks">
+      <div><b>Propozycja przed działaniem</b>zmiana rekordu jako „przed → po” do zatwierdzenia</div>
+      <div><b>Konflikt zamiast nadpisania</b>nieaktualna propozycja nie zmieni nowszych danych</div>
+      <div><b>Kod tylko jako PR</b>z podglądem i zielonym checkiem, merge po kliknięciu człowieka</div>
+      <div><b>Jednorazowy kontener</b>agent pracuje w izolacji, znika po uruchomieniu</div>
+      <div><b>Najmniejsze uprawnienia</b>proces ma tylko te prawa, których potrzebuje, w&nbsp;jednej organizacji</div>
+      <div><b>Log audytu</b>każda akcja zapisana pod osobą, która ją zatwierdziła</div>
+    </div>
+    <aside class="notes"><p>„Kto odpowiada? Człowiek przypisany do zadania. Agent jest delegatem.”</p></aside>
+  </section>
+
+  <!-- B4 · RECORDING -->
+  <section class="slide" data-backup data-title="Nagranie">
+    <div class="kicker">Zapas · Nagranie pełnego uruchomienia</div>
+    <div class="video">
+      <video src="video/run.mp4" controls preload="metadata" playsinline></video>
+      <div class="missing" hidden>Brak nagrania.<br>Wrzuć plik do <span style="color: var(--text)">public/pitch/video/run.mp4</span></div>
+    </div>
+    <aside class="notes"><p><em>Plan awaryjny, gdy sieć albo runner zawiodą: puszczamy nagranie i komentujemy na żywo według tej samej historii.</em></p></aside>
+  </section>
+</div>
+
+<div id="pv">
+  <div class="pv-bar">
+    <span class="clock" id="pv-clock">0:00</span>
+    <button id="pv-reset" type="button">Reset (R)</button>
+    <span id="pv-pos"></span>
+    <span style="margin-left: auto;">limit 5:00 · ← → zmienia slajd w obu oknach</span>
+  </div>
+  <div class="pv-left">
+    <div class="pv-label">Teraz</div>
+    <div class="pv-mini" id="pv-now"></div>
+    <div class="pv-label">Następny</div>
+    <div class="pv-mini" id="pv-next" style="width: 60%;"></div>
+  </div>
+  <div class="pv-right">
+    <div class="pv-label">Notatki</div>
+    <div class="pv-notes" id="pv-notes"></div>
+  </div>
+</div>
+
+<div id="progress"></div>
+<div id="black"></div>
+
+<script>
+(() => {
+  const deck = document.getElementById('deck')
+  const slides = [...deck.querySelectorAll('.slide')]
+  const mainCount = slides.filter((s) => !s.hasAttribute('data-backup')).length
+  const presenter = new URLSearchParams(location.search).has('presenter')
+  const channel = 'BroadcastChannel' in window ? new BroadcastChannel('om-pitch') : null
+  let current = 0
+
+  // footers: "02 / 06" for the pitch, "B1" for backup
+  let backupNo = 0
+  slides.forEach((slide, i) => {
+    const backup = slide.hasAttribute('data-backup')
+    const label = backup ? `B${++backupNo}` : `${String(i + 1).padStart(2, '0')} / ${String(mainCount).padStart(2, '0')}`
+    slide.insertAdjacentHTML('beforeend',
+      `<div class="foot"><span>Stal-Zbiorniki × Open Mercato</span><span>${label}</span></div>`)
+  })
+
+  document.querySelectorAll('video').forEach((video) => {
+    video.addEventListener('error', () => {
+      video.hidden = true
+      video.nextElementSibling.hidden = false
+    })
+  })
+
+  function fit() {
+    const scale = Math.min(innerWidth / 1920, innerHeight / 1080)
+    deck.style.transform = `translate(-50%, -50%) scale(${scale})`
+  }
+
+  function show(index, { broadcast = true } = {}) {
+    current = Math.max(0, Math.min(slides.length - 1, index))
+    slides.forEach((s, i) => s.classList.toggle('active', i === current))
+    history.replaceState(null, '', `${location.search}#${current + 1}`)
+    document.getElementById('progress').style.width =
+      `${Math.min(100, ((current + 1) / mainCount) * 100)}%`
+    if (presenter) renderPresenter()
+    if (broadcast && channel) channel.postMessage({ slide: current })
+  }
+
+  // presenter window: current + next slide, notes, timer
+  let started = null
+  function mini(target, slide) {
+    target.innerHTML = ''
+    if (!slide) return
+    const clone = slide.cloneNode(true)
+    clone.classList.add('active')
+    clone.querySelectorAll('video').forEach((v) => v.removeAttribute('src'))
+    target.appendChild(clone)
+    requestAnimationFrame(() => { clone.style.transform = `scale(${target.clientWidth / 1920})` })
+  }
+  function renderPresenter() {
+    mini(document.getElementById('pv-now'), slides[current])
+    mini(document.getElementById('pv-next'), slides[current + 1])
+    const notes = slides[current].querySelector('.notes')
+    document.getElementById('pv-notes').innerHTML = notes ? notes.innerHTML : ''
+    document.getElementById('pv-pos').textContent =
+      `${current + 1} / ${slides.length} · ${slides[current].dataset.title || ''}`
+  }
+  function tick() {
+    const el = document.getElementById('pv-clock')
+    const secs = started ? Math.floor((Date.now() - started) / 1000) : 0
+    el.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
+    el.classList.toggle('over', secs > 300)
+  }
+
+  if (presenter) {
+    document.body.classList.add('presenter')
+    document.title = 'Notatki · ' + document.title
+    started = Date.now()
+    setInterval(tick, 500)
+    document.getElementById('pv-reset').addEventListener('click', () => { started = Date.now(); tick() })
+    addEventListener('resize', renderPresenter)
+  }
+
+  if (channel) {
+    channel.onmessage = ({ data }) => {
+      if (typeof data.slide === 'number' && data.slide !== current) show(data.slide, { broadcast: false })
+      if (data.black !== undefined) document.body.classList.toggle('black', data.black)
+      if (data.hello && !presenter) channel.postMessage({ slide: current })
+    }
+  }
+
+  addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return
+    const k = e.key
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(k)) { e.preventDefault(); show(current + 1) }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(k)) { e.preventDefault(); show(current - 1) }
+    else if (k === 'Home') show(0)
+    else if (k === 'End') show(mainCount - 1)
+    else if (k === 'f' || k === 'F') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()
+    else if (k === 'b' || k === 'B' || k === '.') {
+      const black = !document.body.classList.contains('black')
+      document.body.classList.toggle('black', black)
+      if (channel) channel.postMessage({ black })
+    }
+    else if ((k === 'n' || k === 'N') && !presenter) window.open(`${location.pathname}?presenter#${current + 1}`, 'om-pitch-notes', 'width=1400,height=860')
+    else if ((k === 'r' || k === 'R') && presenter) { started = Date.now(); tick() }
+    else if (k === 'p' || k === 'P') window.print()
+  })
+  addEventListener('resize', fit)
+
+  fit()
+  show((parseInt(location.hash.slice(1), 10) || 1) - 1, { broadcast: false })
+  if (presenter && channel) channel.postMessage({ hello: true })
+})()
+</script>
+</body>
+</html>
