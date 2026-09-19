@@ -1,3 +1,4 @@
+import type { EntityManager } from '@mikro-orm/postgresql'
 import type { CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
 import { CrudHttpError } from '@open-mercato/shared/lib/crud/errors'
 import { findOneWithDecryption } from '@open-mercato/shared/lib/encryption/find'
@@ -35,11 +36,10 @@ async function forbidden(): Promise<CrudHttpError> {
 
 export async function requireProcessAuthority(
   ctx: CommandRuntimeContext,
+  em: EntityManager,
   input: ProcessAuthorityInput,
 ): Promise<ProcessAuthority> {
   const scope = await requireFeature(ctx, 'task_delegation.process')
-  const em = ctx.transactionalEm
-  if (!em) throw new Error('[internal] Tasks process command requires a managed transaction')
   const decryptScope = { tenantId: scope.tenantId, organizationId: scope.organizationId }
   const process = await findOneWithDecryption(em, ProcessInstance, {
     ...decryptScope,

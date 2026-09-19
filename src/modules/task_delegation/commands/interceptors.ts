@@ -1,11 +1,11 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
-import type { CommandInterceptor, CommandInterceptorBeforeResult } from '@open-mercato/shared/lib/commands/command-interceptor'
-import type { StaffTimeTaskMutationService } from '@open-mercato/core/modules/staff/di'
+import type { CommandInterceptor, CommandInterceptorBeforeResult, CommandInterceptorContext } from '@open-mercato/shared/lib/commands/command-interceptor'
 import type { QueryEngine } from '@open-mercato/shared/lib/query/types'
 import { TaskDelegation } from '../data/entities'
-import { requireTaskScope } from '../lib/auth'
+import type { TaskScope } from '../lib/auth'
 import { evaluateHumanTaskMutation, type DelegationOutcome } from '../lib/transitionPolicy'
 import { consumeInternalTaskTransition, createdTaskColumnSlug } from '../lib/columnContext'
+import { readTaskSnapshot } from '../lib/taskSnapshot'
 import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
 
 type InputRecord = { id?: string; taskStatusId?: string }
@@ -21,8 +21,20 @@ async function rejection(code: 'process_owned' | 'process_only_column'): Promise
   } }
 }
 
-async function activeDelegations(em: EntityManager, scope: { tenantId: string; organizationId: string }, taskIds: readonly string[]): Promise<TaskDelegation[]> {
-  // Callers pass a TaskScope, which also carries userId; the delegation filter takes only tenant and organization.
+/** Staff 0.8.0 gives interceptors the caller's auth and organization, not the command context. */
+function guardScope(context: CommandInterceptorContext): TaskScope | null {
+  const tenantId = context.auth?.tenantId ?? null
+  const organizationId = context.selectedOrganizationId ?? context.auth?.orgId ?? null
+  const userId = context.auth?.sub ?? null
+  return tenantId && organizationId && userId ? { tenantId, organizationId, userId } : null
+}
+
+function forkEm(context: CommandInterceptorContext): EntityManager {
+  return (context.container.resolve('em') as EntityManager).fork()
+}
+
+async function activeDelegations(em: EntityManager, scope: TaskScope, taskIds: readonly string[]): Promise<TaskDelegation[]> {
+  // The delegation filter takes only tenant and organization, never the actor.
   const { tenantId, organizationId } = scope
   return taskIds.length ? em.find(TaskDelegation, { tenantId, organizationId, taskId: { $in: [...taskIds] }, releasedAt: null }) : []
 }
@@ -54,28 +66,26 @@ function makeGuard(targetCommand: string, operation: 'create' | 'status_change' 
     priority: 5,
     async beforeExecute(rawInput, context) {
       if (operation === 'create') return { ok: true }
-      const ctx = context.commandContext
-      if (!ctx) return rejection('process_owned')
+      const scope = guardScope(context)
+      if (!scope) return rejection('process_owned')
       const input = (rawInput ?? {}) as InputRecord
       if (!input.id) return rejection('process_owned')
-      const scope = await requireTaskScope(ctx)
-      const service = ctx.container.resolve<StaffTimeTaskMutationService>('staffTimeTaskMutationService')
-      const snapshot = await service.lockTask(ctx, { taskId: input.id, includeChildren: true })
-      const em = ctx.transactionalEm!
+      const em = forkEm(context)
+      const snapshot = await readTaskSnapshot(context.container.resolve<QueryEngine>('queryEngine'), scope, { taskId: input.id, includeChildren: true })
       const delegations = await activeDelegations(em, scope, [snapshot.taskId, ...snapshot.childTaskIds])
       const ownDelegation = delegations.find((item) => item.taskId === snapshot.taskId) ?? null
       if (operation === 'delete' || (operation === 'update' && !input.taskStatusId)) {
         return delegations.length ? rejection('process_owned') : { ok: true }
       }
       if (!input.taskStatusId) return rejection('process_owned')
-      const knownSlug = createdTaskColumnSlug(ctx, input.taskStatusId)
-      const rows = knownSlug ? null : await ctx.container.resolve<QueryEngine>('queryEngine').query<{ slug: string }>('staff:staff_time_task_status', {
+      const knownSlug = createdTaskColumnSlug(context.auth, input.taskStatusId)
+      const rows = knownSlug ? null : await context.container.resolve<QueryEngine>('queryEngine').query<{ slug: string }>('staff:staff_time_task_status', {
         fields: ['slug'], filters: { id: input.taskStatusId, time_project_id: snapshot.timeProjectId }, page: { page: 1, pageSize: 1 },
         tenantId: scope.tenantId, organizationId: scope.organizationId,
       })
       const targetSlug = knownSlug ?? rows?.items[0]?.slug
       if (!targetSlug) return rejection('process_only_column')
-      if (consumeInternalTaskTransition(ctx, snapshot.taskId, targetSlug)) return { ok: true }
+      if (consumeInternalTaskTransition(context.auth, snapshot.taskId, targetSlug)) return { ok: true }
       if (operation === 'update' && delegations.length > 0) {
         const statusFields = new Set(['id', 'taskStatusId', 'tenantId', 'organizationId'])
         if (Object.keys(input).some((key) => !statusFields.has(key))) return rejection('process_owned')
@@ -91,12 +101,15 @@ function makeGuard(targetCommand: string, operation: 'create' | 'status_change' 
         : {}
       return { ok: true, metadata }
     },
-    async beforeCommit(_input, _result, context) {
-      const ctx = context.commandContext
+    async afterExecute(_input, _result, context) {
+      // The assignee closed a delegated task. Staff has already committed the move; release the
+      // delegation now. If this fails the task sits in Done/Closed with a live delegation, which
+      // "Remove delegate" clears.
       const metadata = context.metadata as GuardMetadata | undefined
-      if (!ctx || !metadata?.releaseDelegationId || !metadata.releaseOutcome) return
-      const scope = await requireTaskScope(ctx)
-      const delegation = await ctx.transactionalEm!.findOne(TaskDelegation, {
+      const scope = guardScope(context)
+      if (!scope || !metadata?.releaseDelegationId || !metadata.releaseOutcome) return
+      const em = forkEm(context)
+      const delegation = await em.findOne(TaskDelegation, {
         id: metadata.releaseDelegationId, tenantId: scope.tenantId, organizationId: scope.organizationId, releasedAt: null,
       })
       if (!delegation) return
@@ -107,19 +120,18 @@ function makeGuard(targetCommand: string, operation: 'create' | 'status_change' 
         : null
       delegation.releasedAt = new Date()
       delegation.updatedAt = new Date()
-      await ctx.transactionalEm!.flush()
+      await em.flush()
     },
     async beforeUndo(undoContext, context) {
-      const ctx = context.commandContext
-      if (!ctx) return rejection('process_owned')
+      const scope = guardScope(context)
+      if (!scope) return rejection('process_owned')
       const taskId = readUndoTaskId(undoContext)
       if (!taskId) return rejection('process_owned')
-      const scope = await requireTaskScope(ctx)
-      const snapshot = await ctx.container.resolve<StaffTimeTaskMutationService>('staffTimeTaskMutationService').lockTask(ctx, { taskId, includeChildren: true, includeDeleted: true })
-      const delegations = await activeDelegations(ctx.transactionalEm!, scope, [snapshot.taskId, ...snapshot.childTaskIds])
+      const em = forkEm(context)
+      const snapshot = await readTaskSnapshot(context.container.resolve<QueryEngine>('queryEngine'), scope, { taskId, includeChildren: true, includeDeleted: true })
+      const delegations = await activeDelegations(em, scope, [snapshot.taskId, ...snapshot.childTaskIds])
       return delegations.length ? rejection('process_owned') : { ok: true }
     },
-    async beforeUndoCommit() {},
   }
 }
 

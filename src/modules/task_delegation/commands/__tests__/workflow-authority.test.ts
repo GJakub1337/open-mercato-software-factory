@@ -17,7 +17,7 @@ beforeEach(() => {
 })
 
 describe('workflow-safe task commands', () => {
-  const ctx = { transactionalEm: {}, container: {} } as unknown as CommandRuntimeContext
+  const ctx = { container: { resolve: () => ({ fork: () => ({}) }) } } as unknown as CommandRuntimeContext
 
   it.each([
     [setStatusCommand, { taskId: TASK_ID, delegationId: DELEGATION_ID, processInstanceId: PROCESS_ID, stepId: 'status', status: 'in_progress' }],

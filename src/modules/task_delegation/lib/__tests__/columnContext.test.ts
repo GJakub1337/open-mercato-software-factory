@@ -1,10 +1,10 @@
 import { describe, expect, it, jest } from '@jest/globals'
-import type { CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
 import { authorizeInternalTaskTransition, consumeInternalTaskTransition, rememberCreatedTaskColumn, createdTaskColumnSlug } from '../columnContext'
 
-const context = {} as CommandRuntimeContext
+// The key is the command's auth object: staff interceptors receive the same reference.
+const context = { sub: 'user-id' }
 
-describe('tasks transaction-local column context', () => {
+describe('tasks per-request column context', () => {
   it('tracks a newly created column without exposing an input bypass flag', () => {
     rememberCreatedTaskColumn(context, 'status-id', 'queued')
     expect(createdTaskColumnSlug(context, 'status-id')).toBe('queued')
@@ -15,6 +15,12 @@ describe('tasks transaction-local column context', () => {
     expect(consumeInternalTaskTransition(context, 'task-id', 'in-design')).toBe(false)
     expect(consumeInternalTaskTransition(context, 'task-id', 'queued')).toBe(true)
     expect(consumeInternalTaskTransition(context, 'task-id', 'queued')).toBe(false)
+  })
+
+  it('does not leak an authorization to another caller', () => {
+    authorizeInternalTaskTransition(context, 'task-id', 'queued')
+    expect(consumeInternalTaskTransition({ sub: 'user-id' }, 'task-id', 'queued')).toBe(false)
+    expect(consumeInternalTaskTransition(null, 'task-id', 'queued')).toBe(false)
   })
 
   it('shares authorizations between separately bundled copies of the module', () => {
