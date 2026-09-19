@@ -10,8 +10,15 @@ catalog.product.created ─▶ subscribers/product-created.ts (is it in „Od r�
   └─▶ lib/board.ts: DEMO task (description links the product) ─▶ tasks.task.delegate → Factory
         └─▶ tasks start-factory ─▶ process factory.deliver ─▶ workflow factory.deliver_product
               └─▶ lib/deliver.ts (EXECUTE_FUNCTION, as the workflow's own principal):
-                    In progress ─▶ lib/publishProduct.ts (catalog record ─▶ page files ─▶ GitHub PR)
-                    ─▶ task link `pr` ─▶ In review          (any error ─▶ Closed, outcome failed)
+                    In progress ─▶ the change (below) ─▶ task link `pr` ─▶ In review
+                                                        (any error ─▶ Closed, outcome failed)
+The change, by FACTORY_RUNNER:
+  container ─▶ lib/runner.ts + lib/developer.ts (execution spec EX-P0): host clones the site,
+               Developer agent (OpenCode 1.18.3) edits and builds it in a disposable
+               om-developer-runner container that holds only the model key; host refuses
+               protected paths/links, commits on the cloned base, opens one PR per task
+  (unset)   ─▶ lib/publishProduct.ts: deterministic page from the catalog record (offline fallback)
+Task drawer ─▶ GET /api/factory/tasks/:id/review: the PR's diff, checks and preview
 Task drawer „Zatwierdź i opublikuj” ─▶ POST /api/factory/tasks/:id/approve (assignee only)
   └─▶ lib/approve.ts: squash-merge at the checked head ─▶ task Done (delegation released, outcome done)
 ```
@@ -31,6 +38,9 @@ Task drawer „Zatwierdź i opublikuj” ─▶ POST /api/factory/tasks/:id/appr
 - Env: `FACTORY_GITHUB_TOKEN` (contents + pull requests on the site repo), `FACTORY_SITE_REPO`
   (default `jtomaszewski/hackaton-stal-zbiorniki-landing`), `FACTORY_SITE_BASE_BRANCH` (default
   `main`), `FACTORY_GITHUB_API_URL` (default `https://api.github.com`), `APP_URL` (links in the task and PR).
+- The agent runner needs Docker and the image: `docker build -t om-developer-runner:local
+  docker/developer-runner`. `.git` stays outside the mounted work tree, so nothing the agent
+  writes can become a hook or config the host's git would run; build output is never published.
 - Rehearsal: `yarn mercato factory publish-product --product <id> --tenant <t> --org <o>` puts
   the product on the board like the intake does; `--direct` opens the PR in-process instead.
   Approving merges into the site repo's `main`, which publishes the page: reset the site after a
