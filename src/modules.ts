@@ -41,6 +41,7 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'planner', from: '@open-mercato/core' },
   { id: 'resources', from: '@open-mercato/core' },
   { id: 'staff', from: '@open-mercato/core' },
+  { id: 'task_tools', from: '@app' },
 ]
 
 const enterpriseModulesEnabled = parseBooleanWithDefault(process.env.OM_ENABLE_ENTERPRISE_MODULES, false)
