@@ -62,9 +62,12 @@ and deploy” przy każdym merge'u, co pasuje do decyzji „klik Marka” poniż
 `/pitch/index.html`, więc to pierwsza karta okna demo. Działa offline, bo fonty są w repo.
 Tekst do powiedzenia jest w notatkach slajdów: `N` otwiera okno prelegenta z notatkami,
 następnym slajdem i zegarem 5:00. Strzałki przełączają slajd w obu oknach, `B` wygasza ekran,
-`P` drukuje do PDF. Po scenie 1 slajd „Jak to działa” zapowiada sceny i zajmuje 10 s z czasu
-demo. Po podziękowaniu są slajdy zapasowe B1–B4: architektura, porównanie z Linear i Copilot,
-bezpieczeństwo, nagranie.
+`P` drukuje do PDF. Kolejność: tytuł stawia problem („Firma zmienia się codziennie. Jej
+strona — raz na dwa tygodnie.”), hook pokazuje go na Marku, a slajd „Jak to działa” robi zwrot
+(„Marek nie ma programisty. Ma Open Mercato.”), zapowiada sceny i zajmuje 10 s z czasu demo.
+Na slajdach są same hasła; szczegóły (parametry próby, pozostałe kierunki „co dalej”) są w
+notatkach. Podziękowanie pokazuje repo i zespół z logo firm i wisi przez Q&A. Po nim są slajdy
+zapasowe B1–B4: architektura, porównanie z Linear i Copilot, bezpieczeństwo, nagranie.
 
 ### Na scenie
 

@@ -113,10 +113,10 @@
   .frame::after { bottom: -9px; right: -9px; border-left: 0; border-top: 0; }
 
   /* 1 — title */
+  .title { justify-content: center; }
   .title h1 { font-size: 156px; }
   .title h1 .line2 { color: var(--red); display: block; }
-  .title .lead { margin-top: 40px; font-size: 38px; }
-  .team { margin-top: auto; margin-bottom: 36px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px;
+  .team { margin-top: auto; margin-bottom: 28px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px;
     border-top: 1px solid var(--ink); padding-top: 28px; }
   .member { display: flex; flex-direction: column; gap: 6px; }
   /* one treatment for every company: monochrome on the dark ground */
@@ -148,23 +148,23 @@
     background: rgba(253,252,250,.92); transform: rotate(-7deg); letter-spacing: .04em; }
   .stamp small { display: block; font: 500 20px/1.2 var(--mono); letter-spacing: 0; text-transform: none; margin-top: 6px; }
   .pains { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 36px; }
-  .pain { border-top: 1px solid var(--ink); padding-top: 20px; font-size: 28px; line-height: 1.3; color: var(--muted); }
-  .pain b { display: block; font: 400 54px/1 var(--serif); letter-spacing: -.01em; color: var(--ink); margin-bottom: 10px; }
+  .pain { border-top: 1px solid var(--ink); padding-top: 20px; }
+  .pain b { display: block; font: 400 52px/1.05 var(--serif); letter-spacing: -.01em; color: var(--ink); }
 
   /* 3 — map */
   .flow { display: grid; grid-template-columns: 1fr 64px 1fr 64px 1.12fr 64px 1fr 64px 1fr;
     align-items: stretch; margin-top: 16px; }
-  .node { padding: 32px 30px; display: flex; flex-direction: column; gap: 18px; min-height: 340px; }
+  .map h2 { font-size: 96px; margin-bottom: 64px; }
+  .node { padding: 36px 30px; display: flex; flex-direction: column; gap: 22px; min-height: 320px; }
+  .map .flow { margin-bottom: auto; }
+  .map .node .t { font-size: 64px; }
   .node .n { font: 600 24px/1 var(--mono); color: var(--red); letter-spacing: .06em; }
   .node .t { font: 400 54px/1 var(--serif); letter-spacing: -.01em; }
-  .node .d { font-size: 27px; line-height: 1.35; color: var(--muted); }
   .node.human { background: var(--red); border-color: var(--red); color: #fff; }
   .node.human .n, .node.human .d { color: rgba(255,255,255,.85); }
   .node.live .t { color: var(--ok); }
   .arrow { display: flex; align-items: center; justify-content: center; }
   .arrow svg { width: 44px; height: 44px; }
-  .thesis { margin-top: 72px; display: flex; align-items: baseline; gap: 36px; }
-  .thesis .display { font-size: 100px; }
   .scenes { margin-top: auto; display: flex; gap: 20px; font: 500 26px/1 var(--mono);
     color: var(--muted); padding-bottom: 32px; }
   .scenes span { border: 1px solid var(--ink); padding: 14px 22px; color: var(--ink); }
@@ -172,28 +172,26 @@
   .scenes .label { border: none; padding-left: 0; color: var(--muted); }
 
   /* 4 — numbers */
-  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 48px; }
+  .stats { margin-block: auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 48px; }
   .stat { border-top: 1px solid var(--ink); padding-top: 32px; }
   .stat.human { border-top: 4px solid var(--red); padding-top: 29px; }
   .stat .v { font: 400 220px/.85 var(--serif); letter-spacing: -.03em; white-space: nowrap; }
   .stat .v small { font: 500 .3em var(--mono); margin-left: 12px; color: var(--muted); letter-spacing: 0; }
   .stat .k { font-size: 30px; line-height: 1.3; color: var(--muted); margin-top: 28px; }
-  .fine { margin-top: auto; padding-bottom: 32px; font: 500 22px/1.6 var(--mono); color: var(--muted); }
 
   /* 5 — next */
   .next h2 { font-size: 96px; margin-bottom: 44px; }
   .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px 40px; }
-  .card { padding: 26px 34px 30px; }
+  .card { padding: 36px 36px 44px; min-height: 340px; display: flex; flex-direction: column; }
   .card .n { font: 600 22px/1 var(--mono); color: var(--red); letter-spacing: .06em; margin-bottom: 12px; }
-  .card .t { font: 400 52px/1 var(--serif); letter-spacing: -.01em; margin-bottom: 10px; }
-  .card .d { font-size: 27px; line-height: 1.38; color: var(--muted); }
+  .card .t { font: 400 80px/1 var(--serif); letter-spacing: -.015em; margin-top: auto; }
   .card.hot { border-color: var(--red); }
   .card.hot .t { color: #fff; }
   .punch { margin-top: auto; font: 400 76px/1 var(--serif); letter-spacing: -.02em; }
   .punch .dim { color: var(--faint); }
 
   /* 6 — close: the dark band */
-  .close { justify-content: center; color: #F4F4F2;
+  .close { color: #F4F4F2;
     background:
       linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px) 0 0 / 48px 48px,
       linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px) 0 0 / 48px 48px,
@@ -201,11 +199,11 @@
   .close::before { border-color: rgba(255,255,255,.12); }
   .close .kicker { color: var(--dim); }
   .close .foot { color: var(--dim); }
-  .close h1 { font-size: 220px; }
-  .repo { margin-top: 72px; font: 500 40px/1 var(--mono); color: #F4F4F2;
+  .close h1 { font-size: 200px; }
+  .close .team { margin-top: auto; margin-bottom: 28px; border-top-color: rgba(255,255,255,.28); }
+  .repo { margin-top: 48px; font: 500 40px/1 var(--mono); color: #F4F4F2;
     border: 1px solid rgba(255,255,255,.28); padding: 30px 36px; align-self: flex-start; }
   .repo span { color: var(--dim); }
-  .close .lead { color: var(--chalk); }
 
   /* backup */
   .arch { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 40px; flex: 1; }
@@ -270,20 +268,13 @@
 <body>
 <div id="deck">
 
-  <!-- 1 · TITLE -->
-  <section class="slide title" data-title="Tytuł">
+  <!-- 1 · TITLE: the problem -->
+  <section class="slide title" data-title="Tytuł: problem">
     <div class="kicker">Open Mercato HackOn · Fabryka oprogramowania</div>
-    <h1>Marek nie ma programisty.<span class="line2">Ma Open Mercato.</span></h1>
-    <p class="lead">Zmiana w firmie staje się zadaniem, agent robi z niego zmianę na stronie, a&nbsp;człowiek ją zatwierdza jednym kliknięciem.</p>
-    <div class="team">
-      <div class="member"><div class="logo"><img src="img/logos/fsh.svg" alt="Full Stack House"></div><b>Jacek Tomaszewski</b><span>Full Stack House</span></div>
-      <div class="member"><div class="logo"><img src="img/logos/they.svg" alt="THEY.dev"></div><b>Patryk Madaj</b><span>THEY.dev</span></div>
-      <div class="member"><div class="logo"><img src="img/logos/select.png" alt="S.E.T. Select Energy"></div><b>Jakub Chojnacki</b><span>S.E.T. Select Energy GmbH</span></div>
-      <div class="member"><div class="logo"><img src="img/logos/setflow.png" alt="Setflow"></div><b>Jakub Gardyza</b><span>Setflow</span></div>
-    </div>
+    <h1>Firma zmienia się codziennie.<span class="line2">Jej strona —<br>raz na dwa tygodnie.</span></h1>
     <aside class="notes">
-      <p><em>0:00–0:05 · Nie czytamy slajdu. Od razu przechodzimy do Marka.</em></p>
-      <p>„Opowiemy wam o jednej firmie i o jednym człowieku.”</p>
+      <p><em>0:00–0:05</em></p>
+      <p>„Firma zmienia się codziennie. Jej strona — raz na dwa tygodnie. Pokażemy to na jednej firmie.”</p>
     </aside>
   </section>
 
@@ -293,12 +284,7 @@
       <div class="tag">01 / KLIENT</div>
       <div class="name">Marek</div>
       <div class="role">Właściciel<br>Stal-Zbiorniki Sp. z o.o.</div>
-      <dl>
-        <dt>Od</dt><dd>2008</dd>
-        <dt>Gdzie</dt><dd>Kobierzyce</dd>
-        <dt>Ludzie</dt><dd>35 osób</dd>
-        <dt>Klienci</dt><dd>20+ zakładów</dd>
-      </dl>
+      <dl><dt>Ludzie</dt><dd>35 osób</dd></dl>
       <div class="zero"><span>Programiści</span><b>0</b></div>
     </div>
     <div class="hook-right">
@@ -309,34 +295,34 @@
         <div class="stamp" style="left: 400px; top: 318px; transform: rotate(5deg);">5000 l?<small>naprawdę 5200 l</small></div>
       </div>
       <div class="pains">
-        <div class="pain"><b>W Excelu</b>oferty, ceny i&nbsp;parametry w&nbsp;trzech miejscach</div>
-        <div class="pain"><b>2 tygodnie</b>na każdą zmianę w&nbsp;agencji, za&nbsp;każdą faktura</div>
-        <div class="pain"><b>Cała firma</b>katalog, sprzedaż i&nbsp;ludzie już są w&nbsp;Open Mercato</div>
+        <div class="pain"><b>Oferty w&nbsp;Excelu</b></div>
+        <div class="pain"><b>2 tygodnie na&nbsp;zmianę</b></div>
+        <div class="pain"><b>Firma już w&nbsp;Open&nbsp;Mercato</b></div>
       </div>
     </div>
     <aside class="notes">
       <p><em>0:05–0:35</em></p>
-      <p>„To jest Marek. Produkuje zbiorniki stalowe pod Wrocławiem. 35 osób, zero programistów.”</p>
+      <p>„To jest Marek. Produkuje zbiorniki stalowe pod Wrocławiem, od 2008 roku. 35 osób, zero programistów.”</p>
       <p>„Wczoraj sprzedał ten zbiornik, a na stronie wciąż jest ‘od ręki’. Obok zbiornik opisany jako 5000 litrów. Ma 5200.”</p>
-      <p>„Każda poprawka to mail do agencji i dwa tygodnie czekania. A cała jego firma, katalog, sprzedaż i ludzie, już żyje w Open Mercato.”</p>
+      <p>„Oferty, ceny i parametry trzyma w trzech Excelach. Każda poprawka strony to mail do agencji, dwa tygodnie czekania i faktura. A cała jego firma — katalog, sprzedaż, ludzie — już żyje w Open Mercato.”</p>
     </aside>
   </section>
 
-  <!-- 3 · MAP -->
-  <section class="slide" data-title="Mapa">
+  <!-- 3 · MAP: the turn -->
+  <section class="slide map" data-title="Mapa">
     <div class="kicker">Jak to działa</div>
+    <h2>Marek nie ma programisty. <span class="accent">Ma&nbsp;Open&nbsp;Mercato.</span></h2>
     <div class="flow">
-      <div class="node frame"><span class="n">01</span><span class="t">Zmiana w firmie</span><span class="d">nowy produkt, poprawka, zrealizowane zamówienie</span></div>
-      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#9B9690" stroke-width="2.5"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
-      <div class="node frame"><span class="n">02</span><span class="t">Zadanie</span><span class="d">na tablicy, przypisane do agenta</span></div>
-      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#9B9690" stroke-width="2.5"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
-      <div class="node frame"><span class="n">03</span><span class="t">Agent proponuje</span><span class="d">zmianę rekordu albo PR z&nbsp;podglądem strony</span></div>
-      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#9E1B32" stroke-width="2.5"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
-      <div class="node frame human"><span class="n">04 · Człowiek</span><span class="t">Marek zatwierdza</span><span class="d">widzi „przed → po” i podgląd, nigdy kodu</span></div>
-      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#9B9690" stroke-width="2.5"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
-      <div class="node frame live"><span class="n">05</span><span class="t">Na żywo</span><span class="d">rekord zmieniony, strona opublikowana, zadanie Done</span></div>
+      <div class="node frame"><span class="n">01</span><span class="t">Zmiana w&nbsp;firmie</span></div>
+      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#6E6E69" stroke-width="2.5"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
+      <div class="node frame"><span class="n">02</span><span class="t">Zadanie</span></div>
+      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#6E6E69" stroke-width="2.5"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
+      <div class="node frame"><span class="n">03</span><span class="t">Agent proponuje</span></div>
+      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#D0324D" stroke-width="2.5"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
+      <div class="node frame human"><span class="n">04 · Człowiek</span><span class="t">Marek zatwierdza</span></div>
+      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#6E6E69" stroke-width="2.5"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
+      <div class="node frame live"><span class="n">05</span><span class="t">Na żywo</span></div>
     </div>
-    <div class="thesis"><span class="display">Start w&nbsp;systemie firmy, <span class="accent">nie w&nbsp;repo.</span></span></div>
     <div class="scenes">
       <span class="label">Zaraz zobaczycie:</span>
       <span><b>1</b>Poprawa rekordu</span>
@@ -345,7 +331,8 @@
     </div>
     <aside class="notes">
       <p><em>0:35–0:45 · Slajd zostaje na ekranie, kiedy przełączamy się na kartę z tablicą zadań.</em></p>
-      <p>„Więc niech strona zmienia się tam, gdzie zmienia się firma. Zmiana w katalogu albo w zamówieniu staje się zadaniem. Agent proponuje zmianę, a Marek ją zatwierdza. Kodu nie czyta nigdy. Zobaczmy.”</p>
+      <p>„Marek nie ma programisty. Ma Open Mercato. Więc niech strona zmienia się tam, gdzie zmienia się firma.”</p>
+      <p>„Nowy produkt, poprawka albo zrealizowane zamówienie staje się zadaniem. Agent proponuje zmianę rekordu albo PR z podglądem strony. Marek widzi ‘przed → po’ i klika — kodu nie czyta nigdy. Rekord zmieniony, strona opublikowana, zadanie zamknięte. Zobaczmy.”</p>
       <p><em>LIVE 0:45–4:15: scena 2 (ZDP-5000), scena 3 (ZWM-1500 → PR → „Zatwierdź i opublikuj”), scena 3b (Park of Poland → Realizacje). Mówimy „zbiornik” i „zadanie”, nigdy „encja” ani „workflow”. Scena 2 niegotowa? Jej czas idzie na scenę 3.</em></p>
     </aside>
   </section>
@@ -355,16 +342,15 @@
     <div class="kicker">Zmierzone na próbie, nie oszacowane</div>
     <h2>Ile to kosztowało</h2>
     <div class="stats">
-      <div class="stat"><div class="v">144<small>s</small></div><div class="k">od zadania do PR z&nbsp;podglądem strony</div></div>
-      <div class="stat"><div class="v">0,25<small>$</small></div><div class="k">koszt modelu za całe uruchomienie</div></div>
-      <div class="stat human"><div class="v accent">1</div><div class="k">kliknięcie Marka, żeby opublikować</div></div>
-      <div class="stat"><div class="v">0</div><div class="k">linii kodu, które Marek musiał przeczytać</div></div>
+      <div class="stat"><div class="v">144<small>s</small></div><div class="k">od zadania do PR</div></div>
+      <div class="stat"><div class="v">0,25<small>$</small></div><div class="k">koszt modelu</div></div>
+      <div class="stat human"><div class="v accent">1</div><div class="k">kliknięcie Marka</div></div>
+      <div class="stat"><div class="v">0</div><div class="k">linii kodu do&nbsp;czytania</div></div>
     </div>
-    <p class="fine">Próba 19.09.2026 · agent: OpenCode w&nbsp;jednorazowym kontenerze · model: Claude Sonnet 4.5 (OpenRouter)<br>check <span style="color: var(--ok)">site</span> zielony: build + Playwright na zbudowanej stronie · podgląd na Vercelu dla każdego PR</p>
     <aside class="notes">
       <p><em>4:15–4:30 · Wracamy z demo na tę kartę.</em></p>
       <p>„To, co widzieliście, na próbie trwało 144 sekundy i kosztowało 25 centów. Check zielony, strona zbudowana i przeklikana przez testy, zanim Marek w ogóle ją zobaczył.”</p>
-      <p><em>Jeśli próba generalna w niedzielę da inne liczby, podmieniamy je tutaj.</em></p>
+      <p><em>Na pytanie o szczegóły: próba 19.09.2026, OpenCode w jednorazowym kontenerze, Claude Sonnet 4.5 przez OpenRouter; check „site” = build + Playwright na zbudowanej stronie; podgląd na Vercelu dla każdego PR. Jeśli próba generalna w niedzielę da inne liczby, podmieniamy je tutaj.</em></p>
     </aside>
   </section>
 
@@ -373,30 +359,33 @@
     <div class="kicker">Co dalej</div>
     <h2>Ten sam proces, więcej&nbsp;wejść</h2>
     <div class="grid3">
-      <div class="card hot frame"><div class="n">01</div><div class="t">Merge bez kliku</div><div class="d">dla zmian niskiego ryzyka, np. nowa strona produktu. Regulamin zawsze czeka na prawnika.</div></div>
-      <div class="card frame"><div class="n">02</div><div class="t">Zgoda klienta</div><div class="d">Open Mercato wysyła maila z prośbą o logo i czyta odpowiedź. PR dopiero po „tak”.</div></div>
-      <div class="card frame"><div class="n">03</div><div class="t">InboxOps</div><div class="d">mail z zapytaniem ofertowym staje się zadaniem dopasowanym do katalogu.</div></div>
-      <div class="card frame"><div class="n">04</div><div class="t">WordPress</div><div class="d">i każda inna strona. Zmienia się cel, kontrakt agenta zostaje ten sam.</div></div>
-      <div class="card frame"><div class="n">05</div><div class="t">Sentry i GitHub</div><div class="d">alert albo issue od razu jako zadanie dla agenta, z&nbsp;tym samym zatwierdzeniem.</div></div>
-      <div class="card frame"><div class="n">06</div><div class="t">Koszt na zadanie</div><div class="d">orkiestrator zapisuje koszt i ślad każdego uruchomienia; poprawki ludzi stają się ewaluacjami.</div></div>
+      <div class="card hot frame"><div class="n">01</div><div class="t">Merge bez kliku</div></div>
+      <div class="card frame"><div class="n">02</div><div class="t">Zgoda klienta mailem</div></div>
+      <div class="card frame"><div class="n">03</div><div class="t">WordPress i&nbsp;każda strona</div></div>
     </div>
     <p class="punch"><span class="dim">Linear i Copilot widzą repo.</span> My widzimy firmę.</p>
     <aside class="notes">
       <p><em>4:30–5:00</em></p>
-      <p>„Dziś każdy merge to jeden klik Marka. Jutro zmiany niskiego ryzyka, jak nowa strona produktu, pójdą same, a regulamin zawsze poczeka na prawnika.”</p>
-      <p>„To samo działa dla maili od klientów, dla WordPressa, dla alertów z Sentry.”</p>
+      <p>„Dziś każdy merge to jeden klik Marka. Jutro zmiany niskiego ryzyka, jak nowa strona produktu, pójdą same — a regulamin zawsze poczeka na prawnika.”</p>
+      <p>„Open Mercato samo poprosi klienta mailem o zgodę na logo i PR zrobi dopiero po ‘tak’. A cel może być dowolny: WordPress, każda inna strona — kontrakt agenta zostaje ten sam.”</p>
       <p>„Linear i Copilot widzą repo. My widzimy firmę. Dziękujemy.”</p>
+      <p><em>Jeśli pytają o więcej: InboxOps (mail z zapytaniem → zadanie), alerty z Sentry i issue z GitHuba jako zadania, koszt i ślad każdego uruchomienia, poprawki ludzi jako ewaluacje.</em></p>
     </aside>
   </section>
 
-  <!-- 6 · CLOSE -->
+  <!-- 6 · CLOSE: team + repo -->
   <section class="slide close" data-title="Dziękujemy">
     <div class="kicker">Pytania</div>
     <h1>Dziękujemy.</h1>
     <div class="repo"><span>github.com/</span>jtomaszewski/open-mercato-software-factory</div>
-    <p class="lead" style="margin-top: 40px;">Open Mercato (MIT) + Agent Orchestrator (enterprise, source-available). Nasze moduły to zwykłe moduły Open Mercato.</p>
+    <div class="team">
+      <div class="member"><div class="logo"><img src="img/logos/fsh.svg" alt="Full Stack House"></div><b>Jacek Tomaszewski</b><span>Full Stack House</span></div>
+      <div class="member"><div class="logo"><img src="img/logos/they.svg" alt="THEY.dev"></div><b>Patryk Madaj</b><span>THEY.dev</span></div>
+      <div class="member"><div class="logo"><img src="img/logos/select.png" alt="S.E.T. Select Energy"></div><b>Jakub Chojnacki</b><span>S.E.T. Select Energy GmbH</span></div>
+      <div class="member"><div class="logo"><img src="img/logos/setflow.png" alt="Setflow"></div><b>Jakub Gardyza</b><span>Setflow</span></div>
+    </div>
     <aside class="notes">
-      <p><em>Q&A 3:00. Slajdy zapasowe są dalej (→): architektura, porównanie z Linear/Copilot, bezpieczeństwo, nagranie.</em></p>
+      <p><em>Q&A 3:00. Open Mercato (MIT) + Agent Orchestrator (enterprise, source-available); nasze moduły to zwykłe moduły Open Mercato. Slajdy zapasowe są dalej (→): architektura, porównanie z Linear/Copilot, bezpieczeństwo, nagranie.</em></p>
       <p><b>Agent się myli?</b> Proponuje, zanim działa. Marek widzi „przed → po”, nieaktualna propozycja kończy się konfliktem zamiast nadpisać dane, a kod wychodzi tylko jako PR z podglądem.</p>
       <p><b>Czemu Marek musi klikać?</b> Dziś każdy merge to jeden klik. Merge bez człowieka dla niskiego ryzyka jest zaprojektowany, tekst prawny nigdy się w nim nie mieści.</p>
       <p><b>Logo Suntago bez pytania?</b> W demo tak, na stronie z noindex. W procesie jest miejsce na zgodę mailem.</p>
