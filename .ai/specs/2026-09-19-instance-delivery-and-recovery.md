@@ -1,7 +1,7 @@
 # Candidate approval, instance delivery and recovery
 
 **Date**: 2026-09-19
-**Status**: Draft
+**Status**: Draft — self-instance scope superseded by D-043; see [code repositories](2026-09-19-code-repositories.md)
 **Scope**: Specification only. Consume a verified candidate; do not implement an agent runtime.
 **Companion**: [Agent execution and verified previews](2026-09-19-agent-execution-and-preview.md)
 **Decisions and sources**: [Package map](2026-09-19-instance-development-infrastructure.md), [accepted decisions](2026-09-19-instance-development-decisions.md)
@@ -450,3 +450,4 @@ No unresolved product question from the interview (through D-042). DL-Q1: infras
 | 2026-09-19 | Technical qualification: transaction seam evidence, Hobby predecessor limits, provider timeout and post-rollback policy drift. |
 | 2026-09-19 | Initial companion specification after D-037; approval, merge, exact-image deployment and recovery contracts. |
 | 2026-09-19 | D-038..042: registered static-site promotion, legal authorization and site-first paired catalog delivery; provider and catalog gates explicit. |
+| 2026-09-19 | D-043..047: self-instance delivery superseded (agent never edits OM); `pr_only` repositories have no delivery; external enrollment replaced by OM features plus project access ([code repositories](2026-09-19-code-repositories.md)). |

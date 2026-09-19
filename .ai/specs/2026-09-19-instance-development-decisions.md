@@ -1,7 +1,7 @@
 # Instance development: accepted decisions
 
 Date: 2026-09-19
-Status: accepted product decisions; technical contracts pending; target scope expanded by D-038
+Status: accepted product decisions; technical contracts pending; target scope expanded by D-038 and narrowed by D-043
 
 These decisions were recorded during the specification interview. They describe the requested behavior, not existing implementation or permission to implement, deploy, or spend.
 
@@ -172,3 +172,23 @@ A terms/legal-content change requires an additional legal-approval feature. One 
 ## D-042
 
 External website previews are available only to authenticated Open Mercato users with access to the task. Direct Vercel deployment URLs must not bypass this gate. There is no public-demo exception.
+
+## D-043
+
+The agent never edits the hosting Open Mercato instance. The `self_instance` target is dropped. Supersedes D-001 (first scenario) and D-003, and the self-instance deployment parts of D-007, D-015 and D-021. Self-instance sections in the execution and delivery specs are superseded pending their rewrite.
+
+## D-044
+
+Open Mercato is the authority for the repository registry, project links and delegation rights; external developer/deployment enrollment is replaced by Open Mercato features plus project access. The GitHub App installation screen is the per-repository consent. The broker alone holds the GitHub App key. See [code repositories](2026-09-19-code-repositories.md).
+
+## D-045
+
+A project links many repositories, with at most one default. A task works on exactly one repository, resolved from its project at delegation and frozen.
+
+## D-046
+
+Add a generic `pr_only` profile kind: sandbox checks, one branch and PR, human merge in GitHub, no preview or delivery. `static_site` keeps D-038..D-042 behavior.
+
+## D-047
+
+The agent is named Developer (`developer`), replacing `factory` and "Open Mercato Developer".
