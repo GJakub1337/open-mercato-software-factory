@@ -65,3 +65,11 @@ if (enterpriseModulesEnabled && enterpriseAgentsEnabled) {
   // orchestrator SDK, so it is only enabled alongside it.
   enabledModules.push({ id: 'agent_examples', from: '@app' })
 }
+
+// Staff owns the board; tasks adds agent delegation through its extension contracts.
+enabledModules.push(
+  { id: 'planner', from: '@open-mercato/core' },
+  { id: 'resources', from: '@open-mercato/core' },
+  { id: 'staff', from: '@open-mercato/core' },
+)
+enabledModules.push({ id: 'tasks', from: '@app' })
