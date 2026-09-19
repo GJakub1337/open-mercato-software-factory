@@ -1,5 +1,6 @@
 import type { ModuleInjectionTable } from '@open-mercato/shared/modules/widgets/injection'
 export const injectionTable: ModuleInjectionTable = {
+  'staff.time_task.board:toolbar': { widgetId: 'task_delegation.injection.board-chrome', priority: 90 },
   'staff.time_task.board:card-badges': [
     { widgetId: 'task_delegation.injection.task-assigned-to-card', priority: 40 },
     { widgetId: 'task_delegation.injection.task-delegate-badge', priority: 50 },

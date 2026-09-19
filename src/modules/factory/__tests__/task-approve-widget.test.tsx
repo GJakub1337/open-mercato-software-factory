@@ -22,8 +22,8 @@ const review: TaskReview = {
   delegationActive: true,
   previewUrl: 'https://preview.test/',
   pr: { number: 8, url: 'https://github.test/o/r/pull/8', state: 'open', merged: false, headSha: 'sha' },
-  checks: [{ name: 'build', status: 'completed', conclusion: 'success' }],
-  files: [{ filename: 'index.html', additions: 14, deletions: 14, patch: '@@\n+new\n-old' }],
+  checks: [{ name: 'build', status: 'completed', conclusion: 'success', url: 'https://github.test/checks/1' }],
+  files: [{ filename: 'index.html', status: 'modified', additions: 14, deletions: 14, patch: '@@\n+new\n-old' }],
 }
 
 beforeEach(() => { readApi.mockReset().mockResolvedValue({ review }) })
