@@ -116,6 +116,10 @@
   .title { justify-content: center; }
   .title h1 { font-size: 156px; }
   .title h1 .line2 { color: var(--red); display: block; }
+  .meta { margin-top: 64px; display: flex; gap: 0; font: 500 28px/1 var(--mono); color: var(--muted); letter-spacing: .02em; }
+  .meta b { font-weight: 600; color: var(--ink); }
+  .title .foot span:first-child { visibility: hidden; } /* team name already in .meta */
+  .meta > * + *::before { content: ""; display: inline-block; width: 8px; height: 8px; background: var(--red); margin: 0 24px; vertical-align: middle; }
   .team { margin-top: auto; margin-bottom: 28px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px;
     border-top: 1px solid var(--ink); padding-top: 28px; }
   .member { display: flex; flex-direction: column; gap: 6px; }
@@ -270,8 +274,9 @@
 
   <!-- 1 · TITLE: the problem -->
   <section class="slide title" data-title="Tytuł: problem">
-    <div class="kicker">Open Mercato HackOn · Fabryka oprogramowania</div>
+    <div class="kicker">Open Mercato HackOn #2 · Agentic Software Engineering</div>
     <h1>Firma zmienia się codziennie.<span class="line2">Jej strona —<br>raz na dwa tygodnie.</span></h1>
+    <p class="meta"><b>Software Factory in Open Mercato</b><span>Wrocław</span><span>20.09.2026</span></p>
     <aside class="notes">
       <p><em>0:00–0:05</em></p>
       <p>„Firma zmienia się codziennie. Jej strona — raz na dwa tygodnie. Pokażemy to na jednej firmie.”</p>
@@ -505,7 +510,7 @@
     const backup = slide.hasAttribute('data-backup')
     const label = backup ? `B${++backupNo}` : `${String(i + 1).padStart(2, '0')} / ${String(mainCount).padStart(2, '0')}`
     slide.insertAdjacentHTML('beforeend',
-      `<div class="foot"><span>Stal-Zbiorniki × Open Mercato</span><span>${label}</span></div>`)
+      `<div class="foot"><span>Software Factory in Open Mercato</span><span>${label}</span></div>`)
   })
 
   document.querySelectorAll('video').forEach((video) => {
