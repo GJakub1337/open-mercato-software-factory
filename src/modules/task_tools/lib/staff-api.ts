@@ -161,7 +161,8 @@ function toComment(row: Row): CommentRecord | null {
   return {
     id,
     authorUserId: readString(row, 'authorUserId'),
-    authorName: readString(row, 'authorName'),
+    // The route resolves the author's display name; users without one fall back to email.
+    authorName: readString(row, 'authorName', 'authorEmail'),
     body: typeof row.body === 'string' ? row.body : '',
     createdAt: readString(row, 'createdAt'),
   }
