@@ -142,7 +142,7 @@
   .plate dd { text-align: right; }
   .plate .zero { margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end;
     font: 500 26px/1 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-  .plate .zero b { font: 400 200px/.8 var(--serif); color: var(--red); }
+  .plate .zero b { font: 400 168px/.8 var(--serif); color: var(--red); }
   .hook-right { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   .hook-right h2 { font-size: 88px; margin-bottom: 36px; }
   .shot { position: relative; overflow: hidden; border: 1px solid var(--frame); }
@@ -154,6 +154,9 @@
   .pains { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 36px; }
   .pain { border-top: 1px solid var(--ink); padding-top: 20px; }
   .pain b { display: block; font: 400 52px/1.05 var(--serif); letter-spacing: -.01em; color: var(--ink); }
+  .pain.twist { border-top-style: dashed; border-top-color: var(--muted); }
+  .pain.twist span { display: block; font: 500 20px/1 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 12px; }
+  .pain.twist b { font-size: 40px; color: var(--muted); }
 
   /* 3 — map */
   .flow { display: grid; grid-template-columns: 1fr 64px 1fr 64px 1.12fr 64px 1fr 64px 1fr;
@@ -288,7 +291,13 @@
       <div class="tag">01 / KLIENT</div>
       <div class="name">Marek</div>
       <div class="role">Właściciel<br>Stal-Zbiorniki Sp. z o.o.</div>
-      <dl><dt>Ludzie</dt><dd>35 osób</dd></dl>
+      <dl>
+        <dt>Przychód</dt><dd>28 mln zł / rok</dd>
+        <dt>Zamówienia</dt><dd>400+ / rok</dd>
+        <dt>Ludzie</dt><dd>35 osób</dd>
+        <dt>Produkcja</dt><dd>24</dd>
+        <dt>Handlowcy</dt><dd>4</dd>
+      </dl>
       <div class="zero"><span>Programiści</span><b>0</b></div>
     </div>
     <div class="hook-right">
@@ -299,16 +308,16 @@
         <div class="stamp" style="left: 400px; top: 318px; transform: rotate(5deg);">5000 l?<small>naprawdę 5200 l</small></div>
       </div>
       <div class="pains">
-        <div class="pain"><b>Oferty w&nbsp;Excelu</b></div>
-        <div class="pain"><b>2 tygodnie na&nbsp;zmianę</b></div>
-        <div class="pain"><b>Firma już w&nbsp;Open&nbsp;Mercato</b></div>
+        <div class="pain"><b>Strona u&nbsp;agencji</b></div>
+        <div class="pain"><b>2 tygodnie na&nbsp;poprawkę</b></div>
+        <div class="pain twist"><span>A&nbsp;tymczasem</span><b>dane firmy są już w&nbsp;Open&nbsp;Mercato</b></div>
       </div>
     </div>
     <aside class="notes">
       <p><em>0:05–0:35</em></p>
-      <p>„To jest Marek. Produkuje zbiorniki stalowe pod Wrocławiem, od 2008 roku. 35 osób, zero programistów.”</p>
+      <p>„To jest Marek. Produkuje zbiorniki stalowe pod Wrocławiem, od 2008 roku. 28 milionów złotych rocznie, ponad 400 zamówień, 35 osób — z czego 24 na produkcji i 4 handlowców. Programistów: zero.”</p>
       <p>„Wczoraj sprzedał ten zbiornik, a na stronie wciąż jest ‘od ręki’. Obok zbiornik opisany jako 5000 litrów. Ma 5200.”</p>
-      <p>„Oferty, ceny i parametry trzyma w trzech Excelach. Każda poprawka strony to mail do agencji, dwa tygodnie czekania i faktura. A cała jego firma — katalog, sprzedaż, ludzie — już żyje w Open Mercato.”</p>
+      <p>„Stronę robi mu agencja. Każda poprawka to mail, dwa tygodnie czekania i faktura. A tymczasem cała jego firma — katalog, sprzedaż, ludzie — już żyje w Open Mercato.”</p>
     </aside>
   </section>
 
