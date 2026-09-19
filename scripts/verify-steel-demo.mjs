@@ -17,8 +17,13 @@ assert.ok(state.database.startsWith('steel_demo_'))
 const client = new Client({ connectionString: env.DATABASE_URL })
 await client.connect()
 try {
-  const scope = (await client.query('select id, tenant_id from organizations where deleted_at is null')).rows
+  const scope = (await client.query('select id, tenant_id, name, logo_url, logo_preserve_aspect_ratio from organizations where deleted_at is null')).rows
   assert.equal(scope.length, 1)
+  assert.equal(scope[0].name, 'Stal-Zbiorniki Sp. z o.o.')
+  assert.equal(scope[0].logo_url, new URL('/brand/stal-zbiorniki-icon.png', env.APP_URL).href)
+  assert.equal(scope[0].logo_preserve_aspect_ratio, true)
+  const logo = readFileSync(new URL('../public/brand/stal-zbiorniki-icon.png', import.meta.url))
+  assert.deepEqual(logo.subarray(0, 8), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), 'Sidebar logo must be a PNG')
   const { id: org, tenant_id: tenant } = scope[0]
   const tables = ['catalog_products', 'catalog_product_categories', 'catalog_product_variant_prices', 'customer_entities', 'customer_companies', 'staff_teams', 'staff_team_members', 'staff_time_projects', 'staff_time_project_members', 'staff_time_task_statuses', 'staff_time_tasks', 'sales_orders', 'sales_order_lines']
   async function snapshot() {
@@ -46,6 +51,7 @@ try {
   writeFileSync(new URL('../.steel-demo/seed-repeat.log', import.meta.url), `${seed.stdout}\n${seed.stderr}`, { mode: 0o600 })
   assert.equal(seed.status, 0, 'Repeated seed must succeed; see .steel-demo/seed-repeat.log')
   assert.deepEqual(await snapshot(), before, 'Repeated seed changed business records')
+  assert.deepEqual((await client.query('select id, tenant_id, name, logo_url, logo_preserve_aspect_ratio from organizations where deleted_at is null')).rows, scope, 'Repeated seed changed organization branding')
   const pending = (await client.query("select count(*)::int as count from module_configs where module_id='demo_fixtures' and tenant_id=$1 and organization_id=$2 and value_json->>'state'='pending'", [tenant, org])).rows[0].count
   assert.equal(pending, 0)
   const processes = await client.query("select tablename from pg_tables where schemaname='public' and tablename like '%process_instance%'")

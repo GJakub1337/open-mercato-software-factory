@@ -1,6 +1,6 @@
 # Odtwarzalna personalizacja Stal-Zbiorniki
 
-Status: Ready for implementation. Powiązanie: docs/specs/SPEC-004-2026-09-18-demo-stal-zbiorniki.md.
+Status: Implemented. Powiązanie: docs/specs/SPEC-004-2026-09-18-demo-stal-zbiorniki.md.
 
 ## TLDR
 Jedna lokalna firma demonstracyjna: katalog zgodny z landingiem, fikcyjni klienci, zespół i tablice pracy. Rozszerzenie modułu demo_fixtures przez istniejące komendy Open Mercato 0.8.0, bez zmiany Core i wyglądu interfejsu.
@@ -94,4 +94,4 @@ Implementacja i lokalna weryfikacja zakończone. Wyniki i ograniczenia: docs/evi
 2026-09-19: plan na podstawie aktualnego origin/main i źródła landingowego; użytkownik autoryzował cały ciąg lokalnego wdrożenia.
 
 ## Implementation Status
-Fazy 1-3 zakończone w zakresie lokalnego demo. 204 testy PASS, ponowienie i ręczne edycje zweryfikowane, UI i branding sprawdzone, przegląd kodu PASS. Ograniczenia końcowego builda i QA opisane w raporcie weryfikacji.
+Fazy 1-3 zakończone w zakresie lokalnego demo. 206 testów PASS, ponowienie i ręczne edycje zweryfikowane, UI i branding sprawdzone, przegląd kodu PASS. Ograniczenia końcowego builda i QA opisane w raporcie weryfikacji.

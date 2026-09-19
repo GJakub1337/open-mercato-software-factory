@@ -12,16 +12,18 @@ Data: 2026-09-19. Aplikacja: origin/main 67a838f, branch codex/steel-demo-person
 
 ## Kontrole kodu
 
-- corepack yarn test --watchman=false --runInBand: 37 suites, 204 tests PASS na końcowym kodzie.
+- corepack yarn test --watchman=false --runInBand: 38 suites, 206 tests PASS na końcowym kodzie.
 - corepack yarn typecheck: PASS po poprawce zachowania hierarchii organizacji.
 - corepack yarn lint: 0 błędów, 10 ostrzeżeń.
 - corepack yarn ds:check: 306 plików PASS.
 - corepack yarn build: PASS przed ostatnią poprawką przekazania parentId/childIds i eksportu logo. Końcowy build nie był powtarzany; końcowe testy i typecheck przeszły.
+- Regresja prepare: testy ponowienia po błędzie demona i konfliktu portu (atrapa Dockera, rzeczywisty system plików) przeszły. Potwierdzono RED na poprzednim skrypcie i GREEN po poprawce. Ponowne prepare na działającym lokalnym kontenerze również przeszło.
+- Weryfikator sprawdza nazwę organizacji, URL logo, zachowanie proporcji, sygnaturę pliku PNG i niezmienność brandingu po ponowieniu. PASS na lokalnej bazie.
 - git diff --check: PASS.
 - Niezależny przegląd kodu: PASS po poprawieniu czterech zgłoszonych problemów. Nie wykonano osobnego testu brandingu organizacji z istniejącą hierarchią.
 
 ## Dowody UI
 
-[Logo i nazwa](branding.png), [organizacja](organization.png), [katalog](catalog.png), [firmy](customers.png), [zespół](staff.png), [tablica DEMO](board.png), [Assigned to](assigned-to.png).
+[Logo i nazwa w Open Mercato](branding.png).
 
-Obrazy sprawdzono wizualnie. Tablica ma przewijanie poziome przy szerokości 1280 px. Nie wykonano pełnego QA mobilnego. Nie testowano wywołań LLM, repozytorium, publikacji ani delegacji zadania: seed nie uruchamia agentów. Nie zmieniono Core ani równoległej instancji na 5001.
+Obrazy sprawdzono wizualnie. Tablica ma przewijanie poziome przy szerokości 1280 px. Nie wykonano pełnego QA mobilnego. Nie testowano wywołań LLM, repozytorium, publikacji ani delegacji zadania: seed nie uruchamia agentów.

@@ -18,29 +18,43 @@ function run(program, args, options = {}) {
 }
 function yarn(env, ...args) { run('corepack', ['yarn', ...args], { env: { ...process.env, ...env } }) }
 if (command === 'prepare') {
-  if (existsSync(stateFile) || existsSync(resolve(root, '.env'))) throw new Error('Existing environment preserved. Use init/seed/start, or prepare in a fresh checkout.')
-  const port = Number(process.env.STEEL_DEMO_PORT ?? 5003)
-  const postgresPort = Number(process.env.STEEL_DEMO_POSTGRES_PORT ?? 55433)
-  for (const value of [port, postgresPort]) if (!Number.isInteger(value) || value < 1024 || value > 65535 || value === 5001) throw new Error('Use an unprivileged free port other than 5001.')
-  const suffix = randomBytes(4).toString('hex')
-  const state = { port, postgresPort, container: `steel-demo-${suffix}`, database: `steel_demo_${suffix}` }
-  const dbPassword = randomBytes(24).toString('hex')
-  const loginPassword = randomBytes(18).toString('base64url')
-  mkdirSync(stateDir, { mode: 0o700 })
-  writeFileSync(stateFile, JSON.stringify(state, null, 2), { mode: 0o600, flag: 'wx' })
-  const env = [
-    `DATABASE_URL=postgres://postgres:${dbPassword}@127.0.0.1:${postgresPort}/${state.database}`,
-    `JWT_SECRET=${randomBytes(32).toString('hex')}`, `APP_URL=http://127.0.0.1:${port}`, `PORT=${port}`,
-    'OM_ENABLE_ENTERPRISE_MODULES=true', 'OM_ENABLE_ENTERPRISE_MODULES_AGENTS=true',
-    'OM_ENABLE_ENTERPRISE_MODULES_SSO=false', 'OM_ENABLE_ENTERPRISE_MODULES_SECURITY=false',
-    'OM_FORCE_LOCALE=pl', 'DEMO_MODE=true', 'CACHE_STRATEGY=memory', 'QUEUE_STRATEGY=local',
-    'OM_INIT_SUPERADMIN_EMAIL=marek@stal-zbiorniki.example', `OM_INIT_SUPERADMIN_PASSWORD=${loginPassword}`,
-    `OM_INIT_ADMIN_PASSWORD=${randomBytes(18).toString('base64url')}`, `OM_INIT_EMPLOYEE_PASSWORD=${randomBytes(18).toString('base64url')}`,
-  ].join('\n') + '\n'
-  writeFileSync(resolve(root, '.env'), env, { mode: 0o600, flag: 'wx' })
-  const dockerEnv = resolve(stateDir, 'postgres.env')
-  writeFileSync(dockerEnv, `POSTGRES_PASSWORD=${dbPassword}\nPOSTGRES_DB=${state.database}\n`, { mode: 0o600, flag: 'wx' })
-  run('docker', ['run', '-d', '--name', state.container, '--label', 'app=steel-demo', '--env-file', dockerEnv, '-p', `127.0.0.1:${postgresPort}:5432`, 'postgres:17-alpine'])
+  if (!existsSync(stateFile)) {
+    if (existsSync(resolve(root, '.env'))) throw new Error('Existing environment preserved. Use init/seed/start, or prepare in a fresh checkout.')
+    const port = Number(process.env.STEEL_DEMO_PORT ?? 5003)
+    const postgresPort = Number(process.env.STEEL_DEMO_POSTGRES_PORT ?? 55433)
+    for (const value of [port, postgresPort]) if (!Number.isInteger(value) || value < 1024 || value > 65535) throw new Error('Use an unprivileged free port.')
+    const suffix = randomBytes(4).toString('hex')
+    const state = { port, postgresPort, container: `steel-demo-${suffix}`, database: `steel_demo_${suffix}` }
+    const dbPassword = randomBytes(24).toString('hex')
+    const loginPassword = randomBytes(18).toString('base64url')
+    mkdirSync(stateDir, { mode: 0o700 })
+    writeFileSync(stateFile, JSON.stringify(state, null, 2), { mode: 0o600, flag: 'wx' })
+    const env = [
+      `DATABASE_URL=postgres://postgres:${dbPassword}@127.0.0.1:${postgresPort}/${state.database}`,
+      `JWT_SECRET=${randomBytes(32).toString('hex')}`, `APP_URL=http://127.0.0.1:${port}`, `PORT=${port}`,
+      'OM_ENABLE_ENTERPRISE_MODULES=true', 'OM_ENABLE_ENTERPRISE_MODULES_AGENTS=true',
+      'OM_ENABLE_ENTERPRISE_MODULES_SSO=false', 'OM_ENABLE_ENTERPRISE_MODULES_SECURITY=false',
+      'OM_FORCE_LOCALE=pl', 'DEMO_MODE=true', 'CACHE_STRATEGY=memory', 'QUEUE_STRATEGY=local',
+      'OM_INIT_SUPERADMIN_EMAIL=marek@stal-zbiorniki.example', `OM_INIT_SUPERADMIN_PASSWORD=${loginPassword}`,
+      `OM_INIT_ADMIN_PASSWORD=${randomBytes(18).toString('base64url')}`, `OM_INIT_EMPLOYEE_PASSWORD=${randomBytes(18).toString('base64url')}`,
+    ].join('\n') + '\n'
+    writeFileSync(resolve(root, '.env'), env, { mode: 0o600, flag: 'wx' })
+    const dockerEnv = resolve(stateDir, 'postgres.env')
+    writeFileSync(dockerEnv, `POSTGRES_PASSWORD=${dbPassword}\nPOSTGRES_DB=${state.database}\n`, { mode: 0o600, flag: 'wx' })
+  }
+  const state = JSON.parse(readFileSync(stateFile, 'utf8'))
+  const env = parse(readFileSync(resolve(root, '.env')))
+  const databaseUrl = new URL(env.DATABASE_URL)
+  if (databaseUrl.hostname !== '127.0.0.1' || Number(databaseUrl.port) !== state.postgresPort || databaseUrl.pathname !== `/${state.database}` || !state.container.startsWith('steel-demo-')) throw new Error('Saved environment target differs from the prepared database.')
+  run('docker', ['info'], { stdio: 'ignore' })
+  const inspection = spawnSync('docker', ['inspect', '--format', '{{.Config.Labels.app}}', state.container], { encoding: 'utf8' })
+  if (inspection.error) throw inspection.error
+  if (inspection.status === 0) {
+    if (inspection.stdout.trim() !== 'steel-demo') throw new Error('Existing container is not a steel-demo environment.')
+    run('docker', ['start', state.container])
+  } else {
+    run('docker', ['run', '-d', '--name', state.container, '--label', 'app=steel-demo', '--env-file', resolve(stateDir, 'postgres.env'), '-p', `127.0.0.1:${state.postgresPort}:5432`, 'postgres:17-alpine'])
+  }
   console.log(`Prepared isolated database ${state.container}. Credentials are only in the local .env. Next: node scripts/steel-demo.mjs init`)
 } else if (['init', 'seed', 'start'].includes(command)) {
   if (!existsSync(stateFile)) throw new Error('Run prepare in this checkout first.')

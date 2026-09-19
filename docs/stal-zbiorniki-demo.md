@@ -21,7 +21,7 @@ node scripts/steel-demo.mjs start
 STEEL_DEMO_PORT=5013 STEEL_DEMO_POSTGRES_PORT=55443 node scripts/steel-demo.mjs prepare
 ```
 
-Nie uruchamiaj tego w checkoutcie mającym już `.env`. Jeśli `yarn generate` utworzył `.env` z przykładu, zachowaj go pod inną nazwą przed `prepare`. Nie kopiuj konfiguracji działającej instancji. Kontener może potrzebować kilku sekund na gotowość przed `init`; sprawdź `docker logs <nazwa-z-prepare>`. Po przerwanym init nie uruchamiaj resetu, sprawdź log i dokończ brakujący krok zwykłym CLI.
+Pierwsze `prepare` wymaga checkoutu bez `.env`. Ponowne `prepare` w przygotowanym checkoutcie wznawia uruchamianie tego samego kontenera bez zmiany haseł; użyj go po włączeniu Dockera lub zwolnieniu portu. Jeśli `yarn generate` utworzył `.env` z przykładu, zachowaj go pod inną nazwą przed `prepare`. Nie kopiuj konfiguracji działającej instancji. Kontener może potrzebować kilku sekund na gotowość przed `init`; sprawdź `docker logs <nazwa-z-prepare>`. Po przerwanym init nie uruchamiaj resetu, sprawdź log i dokończ brakujący krok zwykłym CLI.
 
 `init` stosuje istniejące migracje wyłącznie na nowej pustej bazie, następnie uruchamia `mercato init --no-examples --org="Stal-Zbiorniki Sp. z o.o."`. Nie seeduje mebli ani starszego klienta Park of Poland. Nie dodaje kluczy AI, GitHub App ani połączenia repozytorium. `start` uruchamia tylko lokalny serwer WWW, bez workerów/providerów.
 
