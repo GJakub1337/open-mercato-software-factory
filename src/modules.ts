@@ -72,4 +72,7 @@ if (enterpriseModulesEnabled && enterpriseAgentsEnabled) {
   // brand-new module. Its source ships in every preset; it imports the
   // orchestrator SDK, so it is only enabled alongside it.
   enabledModules.push({ id: 'agent_examples', from: '@app' })
+  // The software factory (SPEC-001): catalog intake → orchestrator process → website PR. Imports the
+  // orchestrator's process entities, so it is only enabled alongside it.
+  enabledModules.push({ id: 'factory', from: '@app' })
 }

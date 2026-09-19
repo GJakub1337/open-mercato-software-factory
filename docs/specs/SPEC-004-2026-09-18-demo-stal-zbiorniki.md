@@ -218,3 +218,4 @@ realizacja to wpis w rejestrze i strona TSX, więc PR fabryki dodaje pliki, nie 
 | 2026-09-19 | Strona na Next ze static export zamiast Astro; produkt to strona TSX (SPEC-005). |
 | 2026-09-19 | Repo landing: PR #5 (infrastruktura realizacji) i #6 (stan demo: fikcyjny browar na `main`) zmergowane; PR #7 z Park of Poland otwarty jako fallback sceny 3b. |
 | 2026-09-19 | Dokument przepisany jako jedyne źródło prawdy o pitchu: „Stan na dziś”, decyzje zamknięte (polski, na żywo z uruchomieniami przed pitchem, merge po kliknięciu Marka zamiast waivera), scenariusz z kolejnością kart i podziałem ról, Q&A o kliknięciu i o logo Suntago; plan wdrożenia na końcu ze stanem kroków. |
+| 2026-09-19 | Scena 3, pierwszy odcinek: moduł `factory` (intake z `catalog.product.created` → proces orkiestratora → PR ze stroną produktu, wynik procesu = PR). Próba na repo strony przeszła; PR-y próbne zamknięte. |
