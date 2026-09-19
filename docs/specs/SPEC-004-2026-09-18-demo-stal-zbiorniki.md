@@ -19,8 +19,8 @@ stronę, plany awaryjne i odpowiedzi na Q&A. Nie dodaje żadnego zachowania prod
 
 ## Otwarte pytania
 
-- **Q1. Stack docelowej strony.** Rozstrzygnięte 2026-09-19: statyczna strona na Astro, produkty
-  jako pliki w repo, preview na Vercelu, publiczne repo `hackaton-stal-zbiorniki-landing`
+- **Q1. Stack docelowej strony.** Rozstrzygnięte 2026-09-19: Next ze static export, strona TSX na
+  produkt w repo, preview na Vercelu, publiczne repo `hackaton-stal-zbiorniki-landing`
   ([SPEC-005](./SPEC-005-2026-09-19-stal-zbiorniki-www.md)). WordPress zostaje na slajdzie
   z roadmapą.
 - **Q2. Język pitchu.** Polski (jury i persona) albo angielski (odbiorcy Open Mercato). Slajdy
@@ -109,8 +109,8 @@ seeder katalogu w core zapisuje kanał sprzedaży i stawki podatku, a SPEC-003 i
 ## Docelowa strona
 
 Osobne publiczne repo, `hackaton-stal-zbiorniki-landing` ([SPEC-005](./SPEC-005-2026-09-19-stal-zbiorniki-www.md)), z takim samym wyglądem jak prawdziwa strona: strona główna,
-strony kategorii, „Od ręki”, szablon strony produktu i `regulamin` (warunki sprzedaży). Jej build
-czyta produkty z plików w repo, więc PR ze sceny 3 dodaje jeden plik. Ma:
+„Od ręki”, strony produktów i `regulamin` (warunki sprzedaży). Każdy produkt to strona TSX w repo,
+więc PR ze sceny 3 dodaje jedną stronę i jedną linię w rejestrze produktów. Ma:
 
 - preview na Vercelu dla każdego PR, do którego linkuje ścieżka recenzji;
 - check `site` (build + Playwright sterowany danymi) wymagany na `main`;
@@ -170,7 +170,7 @@ Prawdopodobne pytania i odpowiedź w dwóch zdaniach na każde:
 
 ### Faza 2: Strona (sobota rano, właściciel infrastruktury)
 
-3. Repo `hackaton-stal-zbiorniki-landing` według SPEC-005, produkty jako pliki, strony „Od ręki” i `regulamin`,
+3. Repo `hackaton-stal-zbiorniki-landing` według SPEC-005, produkty jako strony TSX, strony „Od ręki” i `regulamin`,
    preview dla każdego PR. *Test:* ręcznie zrobiony PR dodający `ZWM-1500` dostaje preview
    pokazujące go w „Od ręki”.
 4. Check `site` i ruleset na `main` według SPEC-005. *Test:* czerwony na PR ze zduplikowanym SKU,
@@ -200,3 +200,4 @@ Prawdopodobne pytania i odpowiedź w dwóch zdaniach na każde:
 | 2026-09-18 | Szkic: persona i fabuła Stal-Zbiorniki, seed katalogu demo (`demo_fixtures`), docelowa strona, plany awaryjne, Q&A. |
 | 2026-09-19 | Q1 rozstrzygnięte (Astro, Vercel, publiczne repo `hackaton-stal-zbiorniki-landing`); strona opisana w SPEC-005. |
 | 2026-09-19 | ZWM-1500 z kategorią „Zbiorniki na wodę pitną” i parametrami w podtytule; weryfikacja strony przez check `site` i status `factory/catalog-match` (SPEC-005). |
+| 2026-09-19 | Strona na Next ze static export zamiast Astro; produkt to strona TSX (SPEC-005). |
