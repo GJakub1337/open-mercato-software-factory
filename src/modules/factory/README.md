@@ -7,8 +7,8 @@ Marek approves it from the task drawer.
 
 ```
 catalog.product.created ─▶ subscribers/product-created.ts (is it in „Od ręki”?)
-  └─▶ lib/board.ts: DEMO task (description links the product) ─▶ tasks.task.delegate → Factory
-        └─▶ tasks start-factory ─▶ process factory.deliver ─▶ workflow factory.deliver_product
+  └─▶ lib/board.ts: DEMO task (description links the product) ─▶ task_delegation.task.delegate → Factory
+        └─▶ task_delegation start-factory ─▶ process factory.deliver ─▶ workflow factory.deliver_product
               └─▶ lib/deliver.ts (EXECUTE_FUNCTION, as the workflow's own principal):
                     In progress ─▶ lib/publishProduct.ts (catalog record ─▶ page files ─▶ GitHub PR)
                     ─▶ task link `pr` ─▶ In review          (any error ─▶ Closed, outcome failed)
@@ -17,8 +17,8 @@ Task drawer „Zatwierdź i opublikuj” ─▶ POST /api/factory/tasks/:id/appr
 ```
 
 - `factory.deliver_product` is a DB-owned workflow definition (`workflowDefinitionAuthoring`)
-  with `grantedFeatures: tasks.view, tasks.process`, so the run acts as its own least-privilege
-  principal; the tasks process commands refuse human actors. Seeded by `setup.seedDefaults`, or
+  with `grantedFeatures: task_delegation.view, task_delegation.process`, so the run acts as its own least-privilege
+  principal; the task_delegation process commands refuse human actors. Seeded by `setup.seedDefaults`, or
   `mercato factory ensure-process` for an older tenant.
 - The run reads its process from the engine's workflow instance id and the product from the task
   description, never from the payload. A task created by hand with a

@@ -2,7 +2,7 @@ import type { EntityManager } from '@mikro-orm/postgresql'
 import type { ModuleCli } from '@open-mercato/shared/modules/registry'
 import { createRequestContainer } from '@open-mercato/shared/lib/di/container'
 import { seedStalZbiornikiDemo } from './lib/stalZbiorniki'
-import { seedTasksDemo } from '../tasks/lib/demoSetup'
+import { seedTaskDelegationDemo } from '../task_delegation/lib/demoSetup'
 
 const USAGE = 'Usage: mercato demo_fixtures seed-stal-zbiorniki --tenant <tenantId> --org <organizationId>'
 
@@ -36,7 +36,7 @@ const seedDemo: ModuleCli = {
         `customer Park of Poland ${created(result.customer)}, order SO-2026-0042 ${created(result.order)}`,
     )
     // The board scenes delegate tasks on the DEMO project to the factory agent (SPEC-004).
-    const board = await seedTasksDemo(container, { tenantId, organizationId })
+    const board = await seedTaskDelegationDemo(container, { tenantId, organizationId })
     console.log(`Task board: DEMO project ${board.projectId}, factory agent ${board.agentUserId ?? 'skipped (orchestrator disabled)'}`)
   },
 }

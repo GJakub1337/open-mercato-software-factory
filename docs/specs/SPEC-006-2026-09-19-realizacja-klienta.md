@@ -72,7 +72,7 @@ i planem awaryjnym, nie osobnym toolem.
 
 | Element | Gdzie | Uwagi |
 |---|---|---|
-| Subscriber `sales.order.updated` → intake, tylko przy przejściu `status` na `fulfilled` | `src/modules/tasks/subscribers/` | ten sam wzorzec co intake z `catalog.product.created` (scena 3) |
+| Subscriber `sales.order.updated` → intake, tylko przy przejściu `status` na `fulfilled` | `src/modules/task_delegation/subscribers/` | ten sam wzorzec co intake z `catalog.product.created` (scena 3) |
 | Subscriber `attachments.attachment.created` → intake, tylko dla zamówienia i obrazów | j.w. | jedno zadanie na partię: `source_ref = orderId:{data}` |
 | Researcher z `web_fetch`: `tools: [agent_orchestrator.web_fetch]` w `AGENT.md`, reguła wyboru logo w prompcie (`og:image`, `<img>` z „logo” w ścieżce lub alt, SVG przed rastrem) | `src/modules/factory/agents/researcher/AGENT.md` + grant feature'ów `agent_orchestrator.web_search`/`web_fetch` w `setup.ts` | bez własnego toola; `OM_WEB_FETCH_MAX_BYTES` domyślne wystarcza na stronę główną |
 | Runner: pobranie logo z URL do `public/logos/<slug>.svg|png` | runner | SVG zostaje SVG, raster do PNG |

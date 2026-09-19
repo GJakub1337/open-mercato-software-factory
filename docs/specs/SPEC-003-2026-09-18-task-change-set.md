@@ -202,7 +202,7 @@ result at context.apply_change_set.result { applied, conflict, failed, notRun }
   them with the row's `before`, normalised the way the query engine returns them. On a difference
   it marks the row `conflict`, stores the current values, and stops.
 - **Stale delegation.** The effector and the subscriber both check that the task's active
-  delegation is the one in the instance input, the same guard SPEC-002 puts on `tasks.*`
+  delegation is the one in the instance input, the same guard SPEC-002 puts on `task_delegation.*`
   commands. If someone takes the task back while its proposal sits in the Caseload, approving the
   proposal writes nothing.
 - **Missing snapshot.** The subscriber is queued, so the effector can run first. This happens
@@ -292,7 +292,7 @@ runner → control  POST /api/tasks/runs/{runId}/events   (x-api-key: the bot pr
   `verifying`, `pushing`, `preview_up`; `check` carries a local check's result; `cost` carries
   the running total.
 - The route accepts a batch only for a `runId` linked to the task's **active** delegation. Before
-  calling `POST /runs`, the process links the run with `tasks.task.link { kind: 'run', ref: runId }`
+  calling `POST /runs`, the process links the run with `task_delegation.task.link { kind: 'run', ref: runId }`
   (a new link kind for SPEC-002). The key belongs to the shim and never enters the run container
   (SPEC-001 *Trust boundaries*).
 - The route stores the events, emits `tasks.run.progress` (`clientBroadcast`), and returns. The
@@ -320,7 +320,7 @@ closes or 72 h pass. This spec defines how that stack is reached:
   `<runId>.preview.<domain> → run-<id>_web:<port>` through Caddy's admin API, bound to localhost.
   It removes the route on teardown. The proxy joins each run network only for the web service.
 - **Auth.** Preview links in Open Mercato point to `GET /api/tasks/changes/{id}/preview`. The
-  route checks `tasks.view` and redirects to `<runId>.preview.<domain>/__factory/enter?t=…`. The
+  route checks `task_delegation.view` and redirects to `<runId>.preview.<domain>/__factory/enter?t=…`. The
   token is an HMAC over `{ runId, exp }`, signed with a key shared by Open Mercato and the shim,
   and valid for 60 seconds. The shim's enter handler verifies it, sets a cookie for that host
   only, and immediately redirects to `/` without the token, with `Referrer-Policy: no-referrer`,
@@ -435,7 +435,7 @@ delegation is released; the transcript artifact remains.
 
 ## API Contracts
 
-ACL: reads need `tasks.view`. **Revert** needs the record command's own `requiredFeatures`.
+ACL: reads need `task_delegation.view`. **Revert** needs the record command's own `requiredFeatures`.
 **Send as me** needs what `reply` needs: participation in the conversation and `messages.compose`.
 No new features.
 
@@ -449,14 +449,14 @@ Routes (per-method `metadata` and `openApi`):
 - `POST /api/tasks/changes/{id}/revert` (Phase 2): for an `applied` record. It creates the
   reverse change and applies it as the caller through the same compare against `after`. It marks
   the original `reverted`, or returns `409 conflict` when the record has changed since.
-- `GET /api/tasks/changes/{id}/preview`: `tasks.view`, then a 302 to the signed preview URL.
+- `GET /api/tasks/changes/{id}/preview`: `task_delegation.view`, then a 302 to the signed preview URL.
   Returns `410 preview_expired` after teardown.
-- `POST /api/tasks/runs/{runId}/events`: bot principal API key with `tasks.process`; the batch
+- `POST /api/tasks/runs/{runId}/events`: bot principal API key with `task_delegation.process`; the batch
   above.
 - `GET /api/tasks/runs?taskId=…` and `GET /api/tasks/runs/{runId}/events?afterSeq=…`: for the
   run view.
 
-Workflow-safe commands (`requiredFeatures: ['tasks.process']`, idempotent on
+Workflow-safe commands (`requiredFeatures: ['task_delegation.process']`, idempotent on
 `(taskId, processInstanceId, stepId)` as in SPEC-002):
 
 - `tasks.change.stage_message { taskId, delegationId, messageId, body, bodyFormat, replyAll, sendViaEmail }`
@@ -510,7 +510,7 @@ route and table, the run view. *Test:* the stub runner posts phases and a manife
 shows them without a reload.
 
 **Phase 4: previews.** Compose label, Caddy routes, the signed redirect, the preview cap. *Test:*
-a preview opens through `…/preview` for a user with `tasks.view` and returns 401 without the
+a preview opens through `…/preview` for a user with `task_delegation.view` and returns 401 without the
 token.
 
 Validation per phase: `yarn generate && yarn typecheck && yarn lint && yarn ds:check && yarn
@@ -537,7 +537,7 @@ test`; `yarn test:integration:ephemeral` after Phase 1 step 5 and at the end of 
 6. **Coarse progress pushed, transcript uploaded once.** Open Mercato stores what a person watches,
    not every token. The transcript stays an artifact.
 7. **Previews behind Open Mercato's ACL.** A preview can show seeded or real data. The one way in
-   is a signed link from a route that checks `tasks.view`.
+   is a signed link from a route that checks `task_delegation.view`.
 
 ## Open Questions
 

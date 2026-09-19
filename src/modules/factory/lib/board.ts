@@ -5,7 +5,7 @@ import { AgentPrincipal } from '@open-mercato/enterprise/modules/agent_orchestra
 import type { CommandBus, CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
 import type { QueryEngine } from '@open-mercato/shared/lib/query/types'
 import { isCrudHttpError } from '@open-mercato/shared/lib/crud/errors'
-import { DEMO_PROJECT_CODE, FACTORY_AGENT_ID } from '../../tasks/lib/demoSetup'
+import { DEMO_PROJECT_CODE, FACTORY_AGENT_ID } from '../../task_delegation/lib/demoSetup'
 import type { Scope } from './catalogRecord'
 
 export type BoardProduct = { id: string; sku: string | null; title: string }
@@ -71,7 +71,7 @@ async function findFactoryAgentUserId(container: AwilixContainer, scope: Scope):
 
 /**
  * Scene 3 intake (SPEC-004): puts the product on the DEMO board as a task and delegates it to
- * the factory agent, which starts `factory.deliver` (tasks' start-factory subscriber). Acts as
+ * the factory agent, which starts `factory.deliver` (task_delegation's start-factory subscriber). Acts as
  * the DEMO project owner, who becomes the accountable assignee. Idempotent per product: an
  * existing task linking the product is reused, and an active delegation is left alone.
  */
@@ -115,7 +115,7 @@ export async function openProductTask(
   }
 
   try {
-    const { result } = await bus.execute<Record<string, unknown>, { taskId: string; delegationId: string }>('tasks.task.delegate', {
+    const { result } = await bus.execute<Record<string, unknown>, { taskId: string; delegationId: string }>('task_delegation.task.delegate', {
       input: { taskId, agentUserId },
       ctx: actingContext(container, scope, project.owner_user_id),
     })

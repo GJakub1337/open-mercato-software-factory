@@ -8,5 +8,5 @@ export const metadata: ModuleInfo = {
     'Turns catalog changes into website pull requests: a product added to „Od ręki” becomes a DEMO board task delegated to Factory, whose run opens a PR with its product page (SPEC-001, SPEC-004 scene 3, SPEC-005).',
   author: 'HackOn team',
   license: 'MIT',
-  requires: ['catalog', 'workflows', 'tasks'],
+  requires: ['catalog', 'workflows', 'task_delegation'],
 }

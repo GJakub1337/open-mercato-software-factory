@@ -39,7 +39,7 @@ Coding execution, model-driven merge approval, automatic destructive migrations,
 
 ## Proposed Solution
 
-Add delivery records and commands to `tasks`, reusing the existing code change/task identity. The external supervisor package owns one delivery executor with a durable operation journal, instance lock/fence, artifact store, protected policy, GitHub delivery adapter and deployment driver. It runs independently of the app and uses separate credentials from coding execution. Split these privileges into service processes or capability-limited adapters, not new business modules.
+Add delivery records and commands to `task_delegation`, reusing the existing code change/task identity. The external supervisor package owns one delivery executor with a durable operation journal, instance lock/fence, artifact store, protected policy, GitHub delivery adapter and deployment driver. It runs independently of the app and uses separate credentials from coding execution. Split these privileges into service processes or capability-limited adapters, not new business modules.
 
 Application approval commands submit a structured, scoped request. They cannot submit arbitrary artifacts, repository URLs, SQL, shell commands or traffic routes. The executor resolves a previously registered candidate and rechecks its provenance, installation policy, enrollment and fresh approval before any privileged side effect. Protected policies and service binaries are updated only through an administrator path outside this self-delivery workflow.
 
@@ -72,7 +72,7 @@ Default approval validity: 24 hours, administrator-configurable downward or upwa
 
 | Actor | Required capability and scope |
 |---|---|
-| Candidate viewer | Task ACL + `tasks.view`; `tasks.code.view` for source evidence. |
+| Candidate viewer | Task ACL + `task_delegation.view`; `tasks.code.view` for source evidence. |
 | Final approver | `tasks.deployments.approve`, task access, human identity and administrator-controlled deployment enrollment for the selected target. Owner/author relationship is allowed, not sufficient. |
 | Request changes | `tasks.runs.control` and task access; invalidates approval before creating a repair attempt. |
 | Legal approver | `tasks.legal.approve` in addition to normal deployment approval; evaluated for semantic legal changes and mixed tasks. |
@@ -246,7 +246,7 @@ Delivery: Validate -> Merge -> Drain -> Backup -> Migrate -> Activate -> Verify
 Running release / Git release / recovery status
 ```
 
-Approval is a custom command dialog, not generic record editing; it uses shared dialog/form controls and optimistic headers. Cmd/Ctrl+Enter confirms only when the explicit dialog is focused; Escape cancels. Required checked facts and failures are text, not color alone. Loading/empty/offline/conflict/recovery states preserve user input and prevent duplicate submission. `apiCall`, `LoadingMessage`, `ErrorMessage`, semantic tokens, `tasks.*` translations, focus restoration, keyboard navigation, narrow-width layout and light/dark coverage follow the execution spec. Display named task/instance/repository references, not raw IDs. No requirement to open GitHub for ordinary approval; link to GitHub remains optional for auditing.
+Approval is a custom command dialog, not generic record editing; it uses shared dialog/form controls and optimistic headers. Cmd/Ctrl+Enter confirms only when the explicit dialog is focused; Escape cancels. Required checked facts and failures are text, not color alone. Loading/empty/offline/conflict/recovery states preserve user input and prevent duplicate submission. `apiCall`, `LoadingMessage`, `ErrorMessage`, semantic tokens, `task_delegation.*` translations, focus restoration, keyboard navigation, narrow-width layout and light/dark coverage follow the execution spec. Display named task/instance/repository references, not raw IDs. No requirement to open GitHub for ordinary approval; link to GitHub remains optional for auditing.
 
 ## Data Models
 

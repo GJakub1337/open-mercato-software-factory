@@ -10,12 +10,12 @@ corepack yarn generate
 corepack yarn typecheck
 corepack yarn lint
 corepack yarn ds:check
-corepack yarn test src/modules/tasks --runInBand --watchman=false
+corepack yarn test src/modules/task_delegation --runInBand --watchman=false
 ```
 
 `--watchman=false` uses Jest's own file traversal. It also avoids dependence on the host's optional Watchman installation.
 
-The migration verifier uses PostgreSQL and the actual generated migration. Supply `TASKS_TEST_DATABASE_URL` pointing to a disposable loopback database named `staff_transaction_test`, then run:
+The migration verifier uses PostgreSQL and the actual generated migration. Supply `TASK_DELEGATION_TEST_DATABASE_URL` pointing to a disposable loopback database named `staff_transaction_test`, then run:
 
 ```sh
 corepack yarn tsx scripts/verify-task-delegation-schema.mjs
@@ -26,7 +26,7 @@ The verifier refuses other database names and remote hosts. It creates a randoml
 The application authentication smoke test uses the repository's isolated runner:
 
 ```sh
-corepack yarn test:integration:ephemeral TC-TASKS-001 --no-reuse-env
+corepack yarn test:integration:ephemeral TC-TASK-DELEGATION-001 --no-reuse-env
 ```
 
 The runner owns the disposable database, initialization, application build, port, and cleanup. Do not run plain `test:integration` with only `BASE_URL`; database fixtures require the complete runner-provided environment. This smoke test exercises unauthenticated requests to all four tasks endpoint methods. Authenticated delegation, Staff transitions, workflow activities, real undo and browser interaction still require their own acceptance tests.

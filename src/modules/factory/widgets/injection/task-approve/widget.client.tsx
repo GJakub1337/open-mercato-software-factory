@@ -6,7 +6,7 @@ import { Button } from '@open-mercato/ui/primitives/button'
 import { apiCallOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { APP_EVENT_DOM_NAME } from '@open-mercato/ui/backend/injection/useAppEvent'
 import type { AppEventPayload } from '@open-mercato/shared/modules/widgets/injection'
-import { useTaskDelegation } from '../../../../tasks/widgets/use-task-delegation'
+import { useTaskDelegation } from '../../../../task_delegation/widgets/use-task-delegation'
 
 /**
  * „Zatwierdź i opublikuj” (SPEC-004 scene 3): shown once the factory run linked its website PR

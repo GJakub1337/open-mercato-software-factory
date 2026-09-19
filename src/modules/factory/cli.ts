@@ -64,7 +64,7 @@ const publishProduct: ModuleCli = {
       appUrl: process.env.APP_URL ?? null,
     })
     console.log(result.status === 'skipped'
-      ? `Skipped (${result.reason}); run \`mercato tasks seed-demo\` and \`mercato factory ensure-process\` first.`
+      ? `Skipped (${result.reason}); run \`mercato task_delegation seed-demo\` and \`mercato factory ensure-process\` first.`
       : `Task ${result.taskId} ${result.created ? 'created' : 'reused'}, ${result.status}; the workers run factory.deliver.`)
   },
 }

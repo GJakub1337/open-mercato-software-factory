@@ -1,6 +1,6 @@
 ---
 title: "Keep cross-module runtime registries on globalThis, and verify them in the built app"
-modules: ["tasks"]
+modules: ["task_delegation"]
 areas: ["debugging", "testing"]
 topics: ["generated-files", "command-transactions", "di"]
 ---

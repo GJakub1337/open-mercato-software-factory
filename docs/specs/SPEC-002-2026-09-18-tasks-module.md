@@ -1,9 +1,9 @@
-# SPEC-002: Tasks module: agent delegation on the staff task board
+# SPEC-002: Task delegation module (`task_delegation`): agent delegation on the staff task board
 
 **Status**: In progress (approved local delegation slice; later delivery stages remain pending)
 **Owner**: HackOn team · **Date**: 2026-09-18 · **Tracker**: —
 **Parent**: [SPEC-001](./SPEC-001-2026-09-18-agentic-software-factory.md), which consumes this
-module's `tasks.task.delegated` event and its three workflow-safe commands.
+module's `task_delegation.task.delegated` event and its three workflow-safe commands.
 
 ## Implementation Status
 
@@ -28,7 +28,7 @@ The approved local slice reuses the staff board and adds delegation, permissions
 ### Application verification in progress (2026-09-19)
 
 - Migration and snapshot generated with the installed CLI database generator restricted to the tasks module. The normal CLI iterates installed package modules too, so this scoped probe avoids writing shipped migrations.
-- `corepack yarn tsx scripts/verify-task-delegation-schema.mjs` verifies the generated DDL on a disposable loopback database with `TASKS_TEST_DATABASE_URL`. It checks active-delegation uniqueness, delegation history after release, receipt uniqueness, organization isolation and distinct executions. The entire test schema is rolled back. No migration has been applied to the developer runtime.
+- `corepack yarn tsx scripts/verify-task-delegation-schema.mjs` verifies the generated DDL on a disposable loopback database with `TASK_DELEGATION_TEST_DATABASE_URL`. It checks active-delegation uniqueness, delegation history after release, receipt uniqueness, organization isolation and distinct executions. The entire test schema is rolled back. No migration has been applied to the developer runtime.
 - API/widget tests currently cover scoped admission, guarded-payload validation, batched reads and event refresh. Read-only AI tool tests cover scope, project access and bounded queries. Command composition, app integration and final review remain required.
 - The first application correctness/security review identified execution-principal binding, undo admission, stale-version checks, delayed start/cancellation, workflow registration and event privacy defects. Corrections and re-review are in progress; passing helper tests are not P1 acceptance.
 - Installed orchestrator limitation: `startExecution` persists a process before queue publication, while a retry deduplicates without re-enqueueing. A crash in that interval can leave a persisted execution unqueued. Automatic crash recovery is blocked pending a framework recovery contract/outbox; it is not covered by the approved Staff correction or by the `starting`/`stalled` presentation. This acceptance item must remain open. Durable cancellation before workflow creation and safe process-start claiming also require orchestrator changes. Workflow activity interpolation currently exposes the workflow instance id, while task commands require the separate process execution id; an orchestrator-owned context contract is still required. The factory process/principal seed, DEMO project seed, real command-transaction integration and full browser acceptance remain incomplete.
@@ -40,12 +40,12 @@ The user selected a framework-owned correction before implementing delegation. A
 ## TLDR
 
 Tasks, projects, the Kanban board, the task drawer and comments come from the core **`staff`**
-module (time tracking), enabled as it ships. Our `tasks` module is a thin layer on top that adds
+module (time tracking), enabled as it ships. Our `task_delegation` module is a thin layer on top that adds
 what `staff` doesn't have: an agent **delegate** next to the human assignee, the process-owned
 status columns, and the contract with SPEC-001's process.
 
 A staff task has a human **assignee**, who is accountable for it. Setting an agent delegate emits
-`tasks.task.delegated`, and that event is SPEC-001's only start path. After that, the process owns
+`task_delegation.task.delegated`, and that event is SPEC-001's only start path. After that, the process owns
 the task's status. A badge on the card shows the linked run's live state, and the drawer shows the
 delegate, the run, the PR and the pending decision. References come from `staff` (`WEB-12`), so
 "Fixes WEB-12" in a PR is unambiguous.
@@ -55,7 +55,7 @@ The MVP is **manual only**: a person creates the task and a person delegates it.
 
 ## Problem Statement
 
-SPEC-001 needs one event and three commands from `tasks`. People need more than that:
+SPEC-001 needs one event and three commands from `task_delegation`. People need more than that:
 
 - **Ownership.** When an agent works a task, someone must still answer for it. With a single
   assignee slot that holds either a human or an agent, the owner disappears the moment the
@@ -76,7 +76,7 @@ Building a board, a drawer, projects, references and comments for this is a week
 - **Product owner** creates a task on the `WEB` project board. It becomes `WEB-12`, assigned to
   them, in `Backlog`. In the drawer they set the delegate to "Factory agent", and within a second
   the card moves to `Queued` with a delegate badge, then the badge shows the pending Caseload
-  decision. They remain the assignee throughout. A user without `tasks.delegate` sees no delegate
+  decision. They remain the assignee throughout. A user without `task_delegation.delegate` sees no delegate
   picker.
 - **Engineer** opens `WEB-12` from a PR titled "Fixes WEB-12". The drawer shows the delegate, the
   run link, the PR, the Caseload item, the parent task and the comments.
@@ -99,10 +99,10 @@ Chat intake (next iteration, storyboarded now; see *Chat intake*):
   question (which project), then proposes `WEB-13` delegated to the Factory agent in OM's
   standard "Review proposed changes" card. They confirm and get a link to the task; everything
   after that happens on the board and in the Caseload, not in the chat.
-- **Business owner without `tasks.delegate`** gets the same card without the delegate, and the
+- **Business owner without `task_delegation.delegate`** gets the same card without the delegate, and the
   task lands in `Backlog` for someone who can delegate it.
 - **Anyone** asks "what's happening with WEB-12?" and gets the column, the run state and the
-  pending decision from `task_tools.get_task` and `tasks.get_delegation`, with links. The chat never shows run progress itself.
+  pending decision from `task_tools.get_task` and `task_delegation.get_delegation`, with links. The chat never shows run progress itself.
 
 ## Proposed Solution
 
@@ -170,7 +170,7 @@ What we accept by reusing it:
 
 ### The module
 
-`src/modules/tasks`, an ordinary app module. It has two entities (delegation and
+`src/modules/task_delegation`, an ordinary app module. It has two entities (delegation and
 process write), the delegate and un-delegate commands, a command interceptor on `staff`'s task
 commands, two injection widgets, events, ACL features, read-only AI tools, and the workflow-safe
 commands SPEC-001 calls.
@@ -194,21 +194,21 @@ needs it. A renamed column keeps its slug and keeps working.
 
 **Delegation** is the whole trigger contract:
 
-1. Delegating requires `tasks.delegate` and a task in `backlog`. The server checks that the
+1. Delegating requires `task_delegation.delegate` and a task in `backlog`. The server checks that the
    delegate is a `kind='agent'` user. If the task has no assignee, the delegating user's staff
    member becomes the assignee in the same command, so a delegated task always has an owner; if
    the delegating user has no staff member, it returns `422 assignee_required`. If the
    `factory.deliver` process definition is missing or disabled, delegation is refused with
    `503 orchestrator_unavailable`, so no task can wait for a run that will never start.
-2. The command inserts a `tasks_delegation` row (its id is the `delegationId`), ensures the
+2. The command inserts a `task_delegations` row (its id is the `delegationId`), ensures the
    factory columns, moves the task to `queued` through `staff`'s `status_change` command, and
-   emits `tasks.task.delegated` after commit.
+   emits `task_delegation.task.delegated` after commit.
 3. SPEC-001's `start-factory` subscriber starts `factory.deliver` with the idempotency key
    `task:{taskId}:{delegationId}`, passing `delegationId` in the instance input. The start subscriber binds the returned process execution id to the exact delegation; process commands validate that persisted binding. SPEC-001's first `set_status → queued` is a
    no-op, because a transition to the current status is accepted and changes nothing.
 4. **Un-delegating** is allowed until the linked instance reaches SPEC-001's `sized`
    milestone. Before an instance is linked, it is always allowed. It releases the delegation,
-   emits `tasks.task.undelegated` (SPEC-001 cancels the instance), and returns the task to
+   emits `task_delegation.task.undelegated` (SPEC-001 cancels the instance), and returns the task to
    `backlog`. After `sized`, it is refused with `409 decision_pending`, and the response
    carries the instance link, because the decision now sits in the Caseload.
 5. **Stale writes are dropped.** Every workflow-safe command carries the `delegationId` from
@@ -225,11 +225,11 @@ needs it. A renamed column keeps its slug and keeps working.
    task to `closed` with outcome `failed` and the instance's error as `close_reason`. A crash or
    a cancel from the orchestrator's UI therefore cannot leave a task stuck in `in-progress`.
 
-**Who writes status.** The process writes through `tasks.task.set_status`, which validates its
+**Who writes status.** The process writes through `task_delegation.task.set_status`, which validates its
 move against the process column of the table below and then runs `staff`'s `status_change`
 command as the workflow's execution principal. People move cards on the `staff` board. A command
-interceptor `tasks.guard-process-owned` on `staff.timesheets.tasks.{status_change,update,delete}`
-applies the people column; it lets through any actor holding `tasks.process`.
+interceptor `task_delegation.guard-process-owned` on `staff.timesheets.tasks.{status_change,update,delete}`
+applies the people column; it lets through any actor holding `task_delegation.process`.
 
 | Move | Process (`set_status`) | Person, no active delegation | Person, active delegation |
 |---|---|---|---|
@@ -251,7 +251,7 @@ delegation for all callers, since human undo must not bypass process ownership. 
 `beforeCommit` releases the delegation (outcome `done` or `rejected`) in the managed staff transaction. Failure aborts both changes; no request-body flag bypasses the guard.
 
 **The run state on the card** is derived at read time, never stored. The card-badge widget reads
-it from `GET /api/tasks/delegations?taskIds=…`. The injection context carries only ids, so every
+it from `GET /api/task_delegation/delegations?taskIds=…`. The injection context carries only ids, so every
 badge on a board registers its task id with a shared client loader that sends **one batched
 request per render**. The server loads the linked instances and their pending proposals and user
 tasks in one lookup through the orchestrator's API or DI service, never through an ORM relation
@@ -266,14 +266,14 @@ across modules.
 | `failed` | instance failed or cancelled, or delegation outcome `failed` |
 | `complete` | instance completed |
 
-The widgets refetch on these client-broadcast events: `tasks.task.delegated`,
-`tasks.task.undelegated`, `staff.timesheets.time_task.status_changed`,
+The widgets refetch on these client-broadcast events: `task_delegation.task.delegated`,
+`task_delegation.task.undelegated`, `staff.timesheets.time_task.status_changed`,
 `workflows.instance.{started,completed,failed,cancelled}` and
 `agent_orchestrator.proposal.{created,disposed}`. The `staff` board already refreshes the card's
 column on `status_changed`. If the orchestrator is absent or the lookup fails, the badge shows
 only "Delegated to Factory agent", and the board still renders.
 
-**Follow-ups** (`tasks.task.create_followup`) create a subtask through `staff`'s `create`
+**Follow-ups** (`task_delegation.task.create_followup`) create a subtask through `staff`'s `create`
 command, in `backlog`, with the parent's assignee and no delegate. `staff` allows one level of
 subtasks, so a follow-up of a subtask attaches to the subtask's parent. Delegation is the only
 trigger, so the factory can't feed itself.
@@ -286,11 +286,11 @@ they are **untrusted prompt input**.
 
 | Later | Seam already in place |
 |---|---|
-| Sentry and GitHub webhook intake, MCP `tasks_create` / `factory_send_task`, domain-event intake | an intake command that creates a `staff` task and delegates it; a `tasks_intake (source, source_ref)` table with a unique index arrives with the first hook |
+| Sentry and GitHub webhook intake, MCP `task_delegation.create_task` / `factory_send_task`, domain-event intake | an intake command that creates a `staff` task and delegates it; a `tasks_intake (source, source_ref)` table with a unique index arrives with the first hook |
 | Chat intake (the AI assistant creates and delegates a task) | the same intake command; designed below and storyboarded |
 | PR-merged hook setting `done` | the assignee closes `in-review` by hand; the hook will call `set_status` |
 | @mention an agent in a comment to trigger it | `staff.timesheets.time_task_comment.created`; the delegate command stays the only trigger |
-| "Has delegate" filter, cross-project factory board | our own page reading `tasks_delegation` joined to `staff` tasks by id |
+| "Has delegate" filter, cross-project factory board | our own page reading `task_delegations` joined to `staff` tasks by id |
 | Upstreaming a delegate field into `staff` | the delegation table maps one-to-one onto a future field |
 | Cost per task on the card | `process_instance_id`; traces are queried per instance |
 
@@ -299,20 +299,20 @@ they are **untrusted prompt input**.
 Open Mercato already has a chat: the topbar **AI** launcher (⌘L) opens `AiChat` in a sheet or
 the right dock. Chat intake adds no chat UI; it adds one module agent and one write tool.
 
-- **Agent** `tasks.intake` ("Task intake", *Can write*) in the launcher's picker. Its job is
+- **Agent** `task_delegation.intake` ("Task intake", *Can write*) in the launcher's picker. Its job is
   to turn a vague request into a good task: ask at most a couple of questions, pick the
   project, write a title and a body with acceptance criteria, and quote the attached records.
 - **Tools.** Read: SPEC-007's `task_tools.search_tasks`, `task_tools.get_task` and
-  `task_tools.list_projects`, plus `tasks.get_delegation`. Write: `tasks_create
+  `task_tools.list_projects`, plus `task_delegation.get_delegation`. Write: `task_delegation.create_task
   { projectId, title, description, delegate?: boolean }`, a mutation declared through
   `defineAiTool` + `prepareMutation`, so the chat shows OM's standard *Review proposed
   changes* card and nothing is written before **Confirm**. The approved call runs
-  the intake command (`staff`'s task `create`, then `tasks.task.delegate`) as the chatting user,
-  so ACL is the board's ACL: without `tasks.delegate` the card shows no delegate and says why.
+  the intake command (`staff`'s task `create`, then `task_delegation.task.delegate`) as the chatting user,
+  so ACL is the board's ACL: without `task_delegation.delegate` the card shows no delegate and says why.
 - **Context.** Records and files the user attaches become chips and are quoted in the body.
   0.8's launcher attaches nothing automatically; attaching the current page's record is the
   user's move.
-- **Traceability.** Chat intake is the first hook, so it brings the `tasks_intake` table:
+- **Traceability.** Chat intake is the first hook, so it brings the `task_delegation_intakes` table:
   `source='chat'`, `source_ref='{conversationId}:{messageId}'`, so a retried confirmation cannot
   create a second task.
 - **After confirmation the chat is done.** The result card links the task. Progress, the
@@ -326,7 +326,7 @@ Every screen is `staff`'s. We add two widgets:
   with the close reason as a tooltip on a `failed` or `rejected` outcome. Nothing renders for a
   task that was never delegated. Status colours come from the shared UI tokens.
 - **Drawer sidebar section** (`detail:staff:staff_time_task:sidebar`): the delegate picker
-  (agents from `GET /api/tasks/agents`, visible with `tasks.delegate`), the run state, the links
+  (agents from `GET /api/task_delegation/agents`, visible with `task_delegation.delegate`), the run state, the links
   (instance, Caseload item, PR, artifacts), the outcome and close reason, and "Remove delegate"
   with the `decision_pending` explanation when refused.
 - What the factory changed (PRs, record updates, staged replies) and the run's progress are
@@ -346,7 +346,7 @@ Caseload frames are unaffected.
 All tables are tenant- and organization-scoped, with standard `created_at` and `updated_at`.
 Task and project ids reference `staff` records by id only, with no ORM relation.
 
-`tasks_delegation`: one row per delegation; the active one has `released_at` null.
+`task_delegations`: one row per delegation; the active one has `released_at` null.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -365,7 +365,7 @@ Task and project ids reference `staff` records by id only, with no ORM relation.
 Indexes: unique `(org, task_id)` where `released_at is null`; `(org, task_id, created_at)`;
 `(org, process_instance_id)`.
 
-`tasks_process_write`: `id`, `task_id`, `process_instance_id`, `step_id`, `command_id`, with a
+`task_delegation_process_writes`: `id`, `task_id`, `process_instance_id`, `step_id`, `command_id`, with a
 unique index on `(org, task_id, process_instance_id, step_id)`. A replayed workflow-safe command
 finds its row and returns the stored result.
 
@@ -373,37 +373,37 @@ This replaces the earlier draft's `tasks_project`, `tasks_task` and `tasks_comme
 
 ## API Contracts
 
-ACL features: `tasks.view` (read delegations and run state), `tasks.delegate`, and
-`tasks.process`, held only by the workflow's execution principal (SPEC-001 *Starting and
+ACL features: `task_delegation.view` (read delegations and run state), `task_delegation.delegate`, and
+`task_delegation.process`, held only by the workflow's execution principal (SPEC-001 *Starting and
 seeding*). Everything else is `staff`'s own ACL (`staff.timesheets.tasks.*`,
 `staff.timesheets.projects.*`). The execution principal also gets
 `staff.timesheets.tasks.manage` in `grantedFeatures`.
 
 Routes (per-method `metadata` and `openApi`):
 
-- `POST /api/tasks/delegations { taskId, agentUserId }`: `422` when the target is not an agent
+- `POST /api/task_delegation/delegations { taskId, agentUserId }`: `422` when the target is not an agent
   or `assignee_required`, `409 invalid_transition` when the task is not in `backlog`,
   `503 orchestrator_unavailable`.
-- `DELETE /api/tasks/delegations/{taskId}`: `409 decision_pending` after `sized`.
-- `GET /api/tasks/delegations?taskIds=…`: the active or last delegation per task with its
+- `DELETE /api/task_delegation/delegations/{taskId}`: `409 decision_pending` after `sized`.
+- `GET /api/task_delegation/delegations?taskIds=…`: the active or last delegation per task with its
   derived `runState`, one batched lookup.
-- `GET /api/tasks/agents`: agent principals the caller may delegate to, for the picker.
+- `GET /api/task_delegation/agents`: agent principals the caller may delegate to, for the picker.
 
-Commands, audited and carrying the acting principal: `tasks.task.delegate` and
-`tasks.task.undelegate`. Undoing a delegation is un-delegation, with the same guard.
+Commands, audited and carrying the acting principal: `task_delegation.task.delegate` and
+`task_delegation.task.undelegate`. Undoing a delegation is un-delegation, with the same guard.
 
-Command interceptor `tasks.guard-process-owned` on
+Command interceptor `task_delegation.guard-process-owned` on
 `staff.timesheets.tasks.{status_change,update,delete}`: the people column of the transition
 table, `beforeUndo` as above, and release on the assignee's close.
 
-Workflow-safe commands (SPEC-001, `requiredFeatures: ['tasks.process']`), idempotent on
-`(taskId, processInstanceId, stepId)` through `tasks_process_write`. A mismatched `delegationId`
+Workflow-safe commands (SPEC-001, `requiredFeatures: ['task_delegation.process']`), idempotent on
+`(taskId, processInstanceId, stepId)` through `task_delegation_process_writes`. A mismatched `delegationId`
 makes the command a logged no-op. People can't undo them. `status` uses SPEC-001's lifecycle
 names and maps to column slugs as above:
 
-- `tasks.task.set_status { taskId, delegationId, status, reason?, processInstanceId, stepId }`
-- `tasks.task.link { taskId, delegationId, kind, ref, url?, processInstanceId, stepId }`
-- `tasks.task.create_followup { parentId, delegationId, title, body, processInstanceId, stepId }`
+- `task_delegation.task.set_status { taskId, delegationId, status, reason?, processInstanceId, stepId }`
+- `task_delegation.task.link { taskId, delegationId, kind, ref, url?, processInstanceId, stepId }`
+- `task_delegation.task.create_followup { parentId, delegationId, title, body, processInstanceId, stepId }`
 
 Subscriber `fail-on-instance-end` on `workflows.instance.{failed,cancelled}`: see the safety
 net under *Delegation*.
@@ -411,17 +411,17 @@ net under *Delegation*.
 Events (after commit; scope in the emit options as well as the payload, per SPEC-001
 constraint 4):
 
-- `tasks.task.delegated { taskId, delegationId, delegateUserId, agentId, delegatedBy }`: persistent, server-only. The process reads authorized task details through `task_tools.get_task` and `tasks.get_delegation`; task titles, references and actor identities are not sent on the browser event stream.
-- `tasks.task.undelegated { taskId, delegationId, processInstanceId? }`: persistent, server-only, consumed for cancellation.
-- `tasks.task.linked { taskId, delegationId, processInstanceId }`: server-only.
-- `tasks.task.changed { taskId }`: browser invalidation, scoped to tenant and organization. Widgets re-read the API, which enforces project access before returning task details.
+- `task_delegation.task.delegated { taskId, delegationId, delegateUserId, agentId, delegatedBy }`: persistent, server-only. The process reads authorized task details through `task_tools.get_task` and `task_delegation.get_delegation`; task titles, references and actor identities are not sent on the browser event stream.
+- `task_delegation.task.undelegated { taskId, delegationId, processInstanceId? }`: persistent, server-only, consumed for cancellation.
+- `task_delegation.task.linked { taskId, delegationId, processInstanceId }`: server-only.
+- `task_delegation.task.changed { taskId }`: browser invalidation, scoped to tenant and organization. Widgets re-read the API, which enforces project access before returning task details.
 
 Task creation, edits, moves and comments emit `staff`'s own events
 (`staff.timesheets.time_task.*`, `staff.timesheets.time_task_comment.*`).
 
 AI tools (read-only, for SPEC-001's research agent): task reads, search and project lists are
 SPEC-007's `task_tools.*`, which go through the `staff` routes. This module adds only
-`tasks.get_delegation { taskId }` (feature `tasks.view`): the task's latest delegation with its
+`task_delegation.get_delegation { taskId }` (feature `task_delegation.view`): the task's latest delegation with its
 delegate, run state, outcome and links, or `{ found: false }` when the task is missing or outside
 the caller's projects.
 
@@ -432,20 +432,20 @@ SQL, and ask before applying.
 
 **Phase 1: records, guard and commands** (the SPEC-001 chain can start after this phase)
 
-1. Enable `planner`, `resources` and `staff` in `modules.ts`. Scaffold `tasks`: `index.ts`,
+1. Enable `planner`, `resources` and `staff` in `modules.ts`. Scaffold `task_delegation`: `index.ts`,
    `acl.ts` (three features), `setup.ts` with role defaults and a seed of an "Internal" customer
    company, a staff member for the seeded admin, and a `DEMO` project with the factory columns.
    Then `yarn generate`. *Test:* the `DEMO` board shows the seven columns; the ACL syncs.
-2. Entities and migration for `tasks_delegation` and `tasks_process_write`. *Test:* migration SQL
+2. Entities and migration for `task_delegations` and `task_delegation_process_writes`. *Test:* migration SQL
    reviewed; the partial unique index refuses a second active delegation.
-3. `ensureFactoryColumns`, `tasks.task.{delegate,undelegate}`, the events, and SPEC-001's
-   `start-factory` subscriber switched to `tasks.task.delegated` with the key
+3. `ensureFactoryColumns`, `task_delegation.task.{delegate,undelegate}`, the events, and SPEC-001's
+   `start-factory` subscriber switched to `task_delegation.task.delegated` with the key
    `task:{taskId}:{delegationId}`. *Tests:* delegate without an assignee makes the actor's staff
    member the assignee; an actor without a staff member gets `assignee_required`; a non-agent
    delegate returns 422; a missing definition returns 503; a deleted `queued` column is
    recreated; un-delegate before `sized` emits `undelegated`, and after it returns
    `decision_pending`.
-4. The `tasks.guard-process-owned` interceptor. *Tests:* every row of the transition table
+4. The `task_delegation.guard-process-owned` interceptor. *Tests:* every row of the transition table
    through `staff`'s PATCH status route and `PUT /tasks`; delete refused; undo refused; the
    assignee's close releases the delegation.
 5. Workflow-safe `set_status`, `link` and `create_followup` in `workflows.ts`, enabled in the
@@ -463,7 +463,7 @@ SQL, and ask before applying.
    of a delegated card shows the 409 message and the card stays.
 8. Client-broadcast refresh. *Test:* integration: the badge goes `starting` → `running` without a
    reload.
-9. Read-only AI tool `tasks.get_delegation` (task reads come from SPEC-007's `task_tools`).
+9. Read-only AI tool `task_delegation.get_delegation` (task reads come from SPEC-007's `task_tools`).
    *Test:* Playground call returns scoped data only.
 
 **Phase 3: end to end**
@@ -521,8 +521,9 @@ test`; `yarn test:integration:ephemeral` after steps 7, 8 and 10.
 | 2026-09-18 | Skeleton with Open Questions Q1–Q4. |
 | 2026-09-18 | Gate resolved (assignee + delegate; manual triggers only; projects as records; plain comments); full draft. |
 | 2026-09-18 | Fresh-context review applied: delegate released at terminal states, reopen and re-delegate, assignee closes `in_review`, stale-write guard on `delegationId`, explicit transition matrix, un-delegate guard on the `sized` milestone, real event names, trigger switch moved into Phase 1. |
-| 2026-09-18 | Rebuilt on the core `staff` task board after trying it: `staff` provides projects, tasks, references, the board, the drawer and comments; `tasks` keeps only delegation (`tasks_delegation`), the process columns, a command-interceptor guard, two widgets and the workflow-safe commands. Priority, the cross-project board and the "has delegate" filter dropped from the MVP. |
+| 2026-09-18 | Rebuilt on the core `staff` task board after trying it: `staff` provides projects, tasks, references, the board, the drawer and comments; `tasks` keeps only delegation (`task_delegations`), the process columns, a command-interceptor guard, two widgets and the workflow-safe commands. Priority, the cross-project board and the "has delegate" filter dropped from the MVP. |
 | 2026-09-18 | Drawer points to SPEC-003's change set panel and run view. |
 | 2026-09-18 | Chat intake designed (agent `tasks.intake`, write tool `tasks_create` behind OM's mutation approval); storyboard linked from Design. |
 | 2026-09-18 | Chat intake aligned with the `staff` rebuild: creates through the intake command, lands in `Backlog`, brings the `tasks_intake` table; storyboard board frames flagged as pre-rebuild. |
-| 2026-09-19 | AI tools deduplicated with SPEC-007: `tasks_get` and `tasks_search` removed in favour of `task_tools.get_task` / `search_tasks`; chat intake reads through `task_tools.*`; the module keeps only `tasks.get_delegation`. |
+| 2026-09-19 | AI tools deduplicated with SPEC-007: `tasks_get` and `tasks_search` removed in favour of `task_tools.get_task` / `search_tasks`; chat intake reads through `task_tools.*`; the module keeps only `task_delegation.get_delegation`. |
+| 2026-09-19 | Module renamed `tasks` → `task_delegation`: it holds no tasks, only delegation on top of `staff`. Tables `task_delegations` / `task_delegation_process_writes`, ACL, event, command, API (`/api/task_delegation/*`) and CLI ids follow; the initial migration was regenerated. |
