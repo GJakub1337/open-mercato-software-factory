@@ -53,31 +53,33 @@ raw i18n keys and no staff time-tracking chrome that does not concern them.
 
 ## Progress
 
+PR: #36
+
 > Convention: `- [ ]` pending, `- [x]` done. Append ` — <commit sha>` when a step lands. Do not rename step titles.
 
 ### Phase 1: Run-state copy and read model
 
-- [ ] 1.1 Add the additive `startedAt` field to the delegation read item
-- [ ] 1.2 Add the Polish and English status-bar, chip and technical-details strings
-- [ ] 1.3 Add the pure run-state presentation module and its unit tests
+- [x] 1.1 Add the additive `startedAt` field to the delegation read item — 2ea289d
+- [x] 1.2 Add the Polish and English status-bar, chip and technical-details strings — 2ea289d
+- [x] 1.3 Add the pure run-state presentation module and its unit tests — 2ea289d
 
 ### Phase 2: The status bar
 
-- [ ] 2.1 Add the status-bar injection widget in the drawer header spot
-- [ ] 2.2 Wire its actions: delegate, retry, take over, Caseload, permission copy
-- [ ] 2.3 Cover every state with widget tests
+- [x] 2.1 Add the status-bar injection widget in the drawer header spot — 435268d
+- [x] 2.2 Wire its actions: delegate, retry, take over, Caseload, permission copy — 435268d
+- [x] 2.3 Cover every state with widget tests — 435268d
 
 ### Phase 3: Slot rearrangement
 
-- [ ] 3.1 Delete the delegate sidebar widget and its slot entry
-- [ ] 3.2 Move the factory approve panel to the header and collapse its technical detail
-- [ ] 3.3 Cover the moved panel with tests
+- [x] 3.1 Delete the delegate sidebar widget and its slot entry — fe1a11d
+- [x] 3.2 Move the factory approve panel to the header and collapse its technical detail — fe1a11d
+- [x] 3.3 Cover the moved panel with tests — fe1a11d
 
 ### Phase 4: Board card and staff chrome
 
-- [ ] 4.1 Make the card badge one Polish phrase with the running elapsed time
-- [ ] 4.2 Hide the owner-irrelevant staff chrome on the drawer and the card
-- [ ] 4.3 Pin the hidden selectors with tripwire tests
+- [x] 4.1 Make the card badge one Polish phrase with the running elapsed time — befb3c4
+- [x] 4.2 Hide the owner-irrelevant staff chrome on the drawer and the card — befb3c4
+- [x] 4.3 Pin the hidden selectors with tripwire tests — befb3c4
 
 ### Phase 5: Validation and evidence
 
