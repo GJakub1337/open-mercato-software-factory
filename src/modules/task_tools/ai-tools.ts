@@ -1,5 +1,5 @@
 /**
- * SPEC-006 — task management AI tools, served to MCP clients by the `ai_assistant`
+ * SPEC-007 — task management AI tools, served to MCP clients by the `ai_assistant`
  * MCP server (and allow-listable by an in-app agent later, unchanged).
  *
  * Five tools over the installed `staff` task board:

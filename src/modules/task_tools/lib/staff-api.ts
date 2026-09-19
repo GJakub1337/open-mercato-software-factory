@@ -177,7 +177,7 @@ export function projectCodeFromReference(reference: string | null): string | nul
 
 /**
  * The project board with the task drawer open — `TaskBoardScreen` reads the drawer
- * task from the `task` search param (SPEC-006 Q-001). Absolute when the app URL is
+ * task from the `task` search param (SPEC-007 Q-001). Absolute when the app URL is
  * known, so an external MCP client can link to it.
  */
 export function boardHref(projectId: string, taskId: string, appUrl?: string | null): string {

@@ -41,7 +41,7 @@ Useful pages: **Agent Orchestrator → Playground** (`/backend/playground`), **C
 
 ## Connect an MCP client
 
-The `task_tools` module (SPEC-006) lets Claude
+The `task_tools` module (SPEC-007) lets Claude
 Code or any MCP client work with the `staff` task board: `task_tools.list_projects`,
 `search_tasks`, `get_task`, `create_task` and `comment_task`. `yarn dev` serves them at
 `http://localhost:3001/mcp` (standalone: `yarn mercato ai_assistant mcp:serve-http --port 3001`).

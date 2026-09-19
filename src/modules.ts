@@ -36,7 +36,7 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'catalog', from: '@open-mercato/core' },
   { id: 'sales', from: '@open-mercato/core' },
   { id: 'demo_fixtures', from: '@app' },
-  // Task board (SPEC-006): `staff` owns tasks/projects/comments and requires `planner`
+  // Task board (SPEC-007): `staff` owns tasks/projects/comments and requires `planner`
   // and `resources`; `task_tools` exposes them to MCP clients as AI tools.
   { id: 'planner', from: '@open-mercato/core' },
   { id: 'resources', from: '@open-mercato/core' },

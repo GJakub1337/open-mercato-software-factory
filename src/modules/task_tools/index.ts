@@ -1,7 +1,7 @@
 import type { ModuleInfo } from '@open-mercato/shared/modules/registry'
 
 /**
- * SPEC-006 — task management AI tools for MCP clients.
+ * SPEC-007 — task management AI tools for MCP clients.
  *
  * Owns no records: the five tools in `ai-tools.ts` read and write `staff` tasks,
  * projects and comments through the installed `staff` HTTP routes, so route ACL,
