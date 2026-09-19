@@ -188,5 +188,5 @@ drugie zadanie, PR z galerią.
 |------|--------|
 | 2026-09-19 | Szkic: zrealizowane zamówienie → scrape strony klienta (Firecrawl) → zgoda jako pole klienta → PR z logo i kartą realizacji; zdjęcia z załączników jako drugi PR; Park of Poland jako klient demo; scena 3b zastępuje scenę prawnika w SPEC-004. |
 | 2026-09-19 | Własny tool Firecrawl zastąpiony wbudowanym `agent_orchestrator.web_fetch` (opt-in w `AGENT.md`, feature'y domyślnie wyłączone); Firecrawl zostaje źródłem fixture'a `suntago.json`. |
-| 2026-09-19 | Q1 rozstrzygnięte: wyzwalacz to `status → fulfilled` (jedyny status z UI). Zrobione: seed klienta i zamówienia w `demo_fixtures`, fixture `suntago.json`; Faza 1 strony na branchu `feat/realizacje-park-of-poland` w repo landing. |
+| 2026-09-19 | Q1 rozstrzygnięte: wyzwalacz to `status → fulfilled` (jedyny status z UI). Zrobione: seed klienta i zamówienia w `demo_fixtures`, fixture `suntago.json`; Faza 1 strony zmergowana w repo landing (PR #5). |
 | 2026-09-19 | Wersja basic: krok zgody (pole, mail, drugi subscriber) wycięty z przepływu; pętla mailowa przez Communications Hub (IMAP/Gmail, `sendAsUser`, `message.received`) opisana jako usprawnienie w *Poza zakresem*. Q2 i Q3 rozstrzygnięte. |

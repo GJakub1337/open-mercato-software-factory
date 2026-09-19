@@ -28,7 +28,7 @@ się na żywo; uruchomienia kodujące startują przed pitchem, a na scenie pokaz
 | 1. Hook | slajd | — | slajd | demo owner |
 | 2. Poprawa rekordu | na żywo | katalog demo z błędnym `ZDP-5000` (`demo_fixtures`) | moduł `tasks`, chat intake (SPEC-002), zmiany `record` w Caseload (SPEC-003) | tasks owner |
 | 3. Katalog → strona | na żywo, uruchomienie przed pitchem | strona z produktami i „Od ręki” w repo landing; ręczny PR z `ZWM-1500` ma preview (repo landing, PR #4) | intake z `catalog.product.created`, proces `factory.deliver`, runner (SPEC-001) | process + runner owner |
-| 3b. Sprzedaż → referencja | na żywo, uruchomienie przed pitchem | klient Park of Poland i zamówienie `SO-2026-0042` w seedzie; strona „Realizacje” + „Zaufali nam” na branchu `feat/realizacje-park-of-poland` w repo landing; fixture scrape'u | intake z `sales.order.updated`, researcher z `web_fetch`, runner (SPEC-006 Fazy 2–3) | jak wyżej |
+| 3b. Sprzedaż → referencja | na żywo, uruchomienie przed pitchem | klient Park of Poland i zamówienie `SO-2026-0042` w seedzie; strona „Realizacje” + „Zaufali nam” na `main` repo landing (PR #5); fixture scrape'u | intake z `sales.order.updated`, researcher z `web_fetch`, runner (SPEC-006 Fazy 2–3) | jak wyżej |
 | 5. Co dalej | slajd | — | slajd | demo owner |
 
 Na `main` tego repo są dziś specki i `demo_fixtures`. Modułów `tasks` i `factory` jeszcze nie ma.
@@ -186,8 +186,8 @@ realizacja to wpis w rejestrze i strona TSX, więc PR fabryki dodaje pliki, nie 
 4. Repo landing według SPEC-005: produkty, „Od ręki”, `regulamin`, preview per PR. **Zrobione**
    (PR #4 z `ZWM-1500` ma preview).
 5. Check `site` i ruleset na `main`. *Test:* czerwony na PR ze zduplikowanym SKU.
-6. „Realizacje” i „Zaufali nam” (SPEC-006 Faza 1). **Zrobione lokalnie**, branch
-   `feat/realizacje-park-of-poland`, do pusha i PR.
+6. „Realizacje” i „Zaufali nam” (SPEC-006 Faza 1). **Zrobione** (repo landing, PR #5
+   zmergowany).
 
 ### Faza 3: Połączenie scen (z krokami 2–4 ze SPEC-001)
 
