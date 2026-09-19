@@ -140,7 +140,7 @@ drugie zadanie, PR z galerią.
 |---|---|
 | `web_fetch` (ACL, SSRF, limit bajtów) | researcher czyta `suntago.json` z fixtures (zrzut z Firecrawl); mówimy, skąd to jest |
 | Subscriber na `sales.order.updated` | handlowiec tworzy zadanie ręcznie z linkiem do zamówienia |
-| Runner | nagrane uruchomienie, jak w scenie 3 |
+| Runner | otwarty PR #7 w repo landing (ten sam wpis i logo) plus nagrane uruchomienie, jak w scenie 3 |
 | Zdjęcia (drugi PR) | wyciąć, zostaje logo i karta |
 
 ## Ryzyka
