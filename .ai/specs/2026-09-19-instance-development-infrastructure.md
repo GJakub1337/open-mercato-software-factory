@@ -95,3 +95,40 @@ Catalog 0.8.0 `catalog/workflows.ts` explicitly excludes prices from safe workfl
 On 2026-09-19, independent architecture/scope and security reviews passed the original self-instance drafts with no open findings. Independent architecture/scope and security reviews also passed the external-target extension after correcting dependency scope and per-surface traceability. Corrections covered exhausted-attempt continuation, incident-scoped manual forward recovery, pre-publication CI privileges, snapshot recipients/derivatives, and preview cookie isolation. The check was read-only and did not exercise application behavior.
 
 Local document checks passed: the original 37 decisions had coverage, both specifications preserve the required template sections, local links/reference files exist, and whitespace checks pass. Runtime tests, provider calls, image builds, merges, database operations and deployments were not run as part of drafting.
+
+
+## Technical verification follow-up (2026-09-19)
+
+Scope: read-only installed-source inspection and official documentation research. No app implementation, provider configuration, database writes, container starts, paid inference or deployment tests. The installed resolver confirms `@open-mercato/core`, `enterprise` and `shared` 0.8.0; inspected MikroORM is 7.2.0. The resolver was run without materialization; its JSON search field remained `pending`, so the findings below come from direct reads of the named source files, not a claim of a completed resolver search.
+
+| Area / gate | Verified evidence | Consequence and remaining gate |
+|---|---|---|
+| Orchestrator start (EX-Q1) | Installed `agent_orchestrator/commands/processes.ts:35-58` skips definition input validation when schema compilation fails. Existing enqueue/link crash windows remain. | The bridge must reject invalid pinned input schemas itself and preserve hash/idempotency checks. EX-T01/05 must exercise admission and crash recovery; not run. |
+| OpenCode async delivery (EX-Q1) | Public tag `v1.18.3` resolves to `127bdb30784d508cc556c71a0f32b508a3061517`; [handler lines 311-329](https://github.com/anomalyco/opencode/blob/127bdb30784d508cc556c71a0f32b508a3061517/packages/opencode/src/server/routes/instance/httpapi/handlers/session.ts#L311) forks work before returning No Content. | HTTP 204 is not durable acknowledgment. Reconcile persisted input and supervisor journal. Version-matched source narrows the question but does not certify the OM image or message replay behavior. |
+| OpenCode restart/checkpoint (EX-Q1) | Pinned [status service](https://github.com/anomalyco/opencode/blob/127bdb30784d508cc556c71a0f32b508a3061517/packages/opencode/src/session/status.ts#L31) uses a Map with idle as missing-entry default; [import](https://github.com/anomalyco/opencode/blob/127bdb30784d508cc556c71a0f32b508a3061517/packages/opencode/src/cli/cmd/import.ts#L172) restores session/message/part records, not repository files. | Idle after restart and successful import are insufficient checkpoint proof. Preserve durable state plus worktree. EX-T04/05 need actual pinned-image fixtures with a fake provider. |
+| Catalog transaction (DL-Q4) | Shared `commands/types.ts` defines `transactionalEm`; catalog `commands/prices.ts:500-719` ignores it, forks, flushes, then emits side effects. MikroORM `EntityManager.js:1813-1835` copies transaction context only on request. | Current command is not a qualified atomic price/context/receipt seam. DL-P6 stays blocked pending catalog-owned capability and concurrency/crash fixtures. Website-only delivery remains independent. |
+| Static packaging (EX-Q4) | Official [Build Output API](https://vercel.com/docs/build-output-api/v3) permits producing `.vercel/output` directly; [configuration v3](https://vercel.com/docs/build-output-api/v3/configuration) supports static routing metadata. | A trusted packager can consume the secret-free Next static export instead of running candidate build code with provider secrets. This is a documented mechanism, not a tested uploader; test route/asset/404 behavior and reject dynamic output/untrusted routing before admission. |
+| Protection/promotion (EX-Q4, DL-Q5) | [Standard Protection](https://vercel.com/docs/deployment-protection) covers generated URLs on Hobby; [staged production promotion](https://vercel.com/docs/deployments/promoting-a-deployment) avoids rebuilding. | Account entitlements, actual protection, bypass-secret containment, exact artifact identity and gateway ACL still need installation qualification. No live provider configuration was inspected. |
+| Rollback/policy (DL-Q5) | [CLI rollback](https://vercel.com/docs/cli/rollback) limits Hobby to the previous production deployment, says timeout does not cancel the operation, and says promotion after rollback re-enables domain auto-assignment. | Require eligible predecessor, retain lease through uncertain operations, and independently disable competing publishers. DL-T13/15 must exercise this sequence on an authorized fixture project. |
+
+### Catalog seam qualification boundary
+
+An app command registration is not a solution to DL-Q4. The future catalog owner must expose or qualify one transaction boundary that checks approved before-state and relevant parent/pricing context, applies the normalized change, and commits the operation receipt together. Ordinary writers must participate in compatible locking/version semantics. Events, indexing and audit obligations must remain correct after rollback or process death; no success based solely on equal numeric values. The exact framework API and its upstream contribution remain a separate design/implementation task. No new catalog API or generic workflow permission is declared ready by this research.
+
+### Qualification sequence and acceptance evidence
+
+1. **Source contract review (completed):** named installed files and version-pinned OpenCode source establish the limitations above; official Vercel documentation establishes supported mechanisms and plan limits. This is static evidence only.
+2. **Local conformance (not executed):** use the pinned OpenCode image with no live credentials and a fake provider; exercise EX-T01/04/05, including two workflow-start crash windows, early/duplicate signals, false idle after restart, interrupted tool work and missing checkpoint files. Record image/schema/config digests and observed results. Existing provider-wide inference-budget and safe-drain gates remain open.
+3. **Catalog seam (blocked on framework capability):** demonstrate one transaction for prices/context/receipt, ordinary-writer races, multi-row rollback and post-commit side-effect recovery in isolated fixtures (DL-T14/15). No live catalog writes during qualification.
+4. **Provider conformance (not executed, separate administrator authorization):** on an explicitly approved fixture project, verify private generated URLs, OM task ACL/revocation, credential-free static packaging, staged exact-ID promotion, eligible rollback, timeout reconciliation and no competing publication after undoing rollback (EX-T13, DL-T13/15). Read-only documentation cannot prove account behavior or authorize these writes.
+
+Source fingerprints for reproducibility, not proof of runtime conformance:
+
+| Package-relative source | SHA-256 |
+|---|---|
+| `@open-mercato/core/src/modules/catalog/commands/prices.ts` | `9ef09339deb77055f799824cd2d26ee7d1dacfcda5ad4dbbc772e8b039661b8d` |
+| `@open-mercato/shared/src/lib/commands/types.ts` | `58b7f78adb734648d42b46807b5d0b60caf857953c2fd08e615eba0df0da30d6` |
+| `@mikro-orm/core/EntityManager.js` | `2acd46404c3a5c2cbb775f90529535899e32157cee071afcc50b6a566c16a268` |
+| `@open-mercato/enterprise/src/modules/agent_orchestrator/commands/processes.ts` | `cc67ff3f0ba314ccaf8fc37827922013294368ca67b49ee35292a60c31cd4b40` |
+
+Independent architecture/scope and security reviewers verified this follow-up against the named sources and returned no findings. This passes documentation handoff only; the unexecuted qualification gates above remain open.
