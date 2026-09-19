@@ -15,7 +15,7 @@ import { createLogger } from '@open-mercato/shared/lib/logger'
 
 export const TASK_DELEGATION_SERVICE = 'taskDelegationService' as const
 const logger = createLogger('task_delegation').child({ component: 'delegation-service' })
-export type TaskDelegationRunState = 'starting' | 'stalled' | 'running' | 'awaiting_decision' | 'failed' | 'complete'
+export type TaskDelegationRunState = 'starting' | 'stalled' | 'running' | 'awaiting_decision' | 'failed' | 'rejected' | 'complete'
 export type TaskDelegationDto = {
   id: string
   delegateUserId: string
@@ -52,7 +52,8 @@ const ASSIGNABLE_PEOPLE_PAGE_SIZE = 200
 
 export function deriveTaskRunState(delegation: TaskDelegation, process: ProcessInstance | null, now: Date): TaskDelegationRunState {
   if (delegation.outcome === 'failed') return 'failed'
-  if (delegation.outcome === 'done' || delegation.outcome === 'rejected') return 'complete'
+  if (delegation.outcome === 'rejected') return 'rejected'
+  if (delegation.outcome === 'done') return 'complete'
   if (!delegation.processInstanceId || !process) {
     return now.getTime() - delegation.createdAt.getTime() > 60_000 ? 'stalled' : 'starting'
   }

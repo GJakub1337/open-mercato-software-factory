@@ -27,7 +27,7 @@ się na żywo; uruchomienia kodujące startują przed pitchem, a na scenie pokaz
 |---|---|---|---|---|
 | 1. Hook | slajd | — | slajd | demo owner |
 | 2. Poprawa rekordu | na żywo | katalog demo z błędnym `ZDP-5000` (`demo_fixtures`); tablica DEMO z delegowaniem do Factory (moduł `task_delegation`) | chat intake (SPEC-002), zmiany `record` w Caseload (SPEC-003) | tasks owner |
-| 3. Katalog → strona | na żywo, uruchomienie przed pitchem | strona z produktami i „Od ręki” w repo landing; moduł `factory`: produkt w „Od ręki” → zadanie na tablicy DEMO delegowane do Factory → `factory.deliver` otwiera PR ze stroną, podpina go do zadania i przesuwa je do „In review” → „Zatwierdź i opublikuj” w szufladzie merguje PR i zamyka zadanie jako Done | próba na prawdziwym repo landing z kliknięciem Marka; runner agenta (SPEC-001) zamiast deterministycznego generatora strony | process + runner owner |
+| 3. Katalog → strona | na żywo, uruchomienie przed pitchem | strona z produktami i „Od ręki” w repo landing; moduł `factory`: produkt w „Od ręki” → zadanie na tablicy DEMO delegowane do Factory → `factory.deliver` otwiera PR ze stroną, podpina go do zadania i przesuwa je do „In review” → „Zatwierdź i opublikuj” w szufladzie merguje PR i zamyka zadanie jako Done | stronę pisze agent Developer (OpenCode + Claude przez OpenRouter) w jednorazowym kontenerze, a szuflada pokazuje diff, checki i podgląd (EX-P0; próba 19.09: 144 s, 0,25 USD, `site` zielony); zostaje próba z kliknięciem Marka na prawdziwym repo | process + runner owner |
 | 3b. Sprzedaż → referencja | na żywo, uruchomienie przed pitchem | klient Park of Poland i zamówienie `SO-2026-0042` w seedzie; strona „Realizacje” + „Zaufali nam” na `main` repo landing z fikcyjnym browarem jako pierwszą referencją; ręczny PR #7 z wpisem Park of Poland otwarty jako fallback; fixture scrape'u | intake z `sales.order.updated`, researcher z `web_fetch`, runner (SPEC-006 Fazy 2–3) | jak wyżej |
 | 5. Co dalej | slajd | — | slajd | demo owner |
 
@@ -161,6 +161,11 @@ Punkty wejścia: `yarn initialize` (z przykładami core, wystarcza do developmen
 instancji demo `yarn mercato init --no-examples`, a potem
 `yarn mercato demo_fixtures seed-stal-zbiorniki --tenant <id> --org <id>`.
 
+Baza zaseedowana przed SPEC-008 ma agenta o nazwie `Factory`: prowizjonowanie zapisuje nazwę
+wyłącznie przy tworzeniu principala, więc ponowny seed jej nie ruszy. Zmienia ją dopiero
+`yarn mercato task_delegation rename-agent --tenant <id> --org <id>` — idempotentne, do
+uruchomienia przed demem, nie w jego trakcie.
+
 ## Docelowa strona
 
 Publiczne repo `hackaton-stal-zbiorniki-landing` (SPEC-005): strona główna, „Od ręki”, strony
@@ -225,3 +230,4 @@ realizacja to wpis w rejestrze i strona TSX, więc PR fabryki dodaje pliki, nie 
 | 2026-09-19 | Dokument przepisany jako jedyne źródło prawdy o pitchu: „Stan na dziś”, decyzje zamknięte (polski, na żywo z uruchomieniami przed pitchem, merge po kliknięciu Marka zamiast waivera), scenariusz z kolejnością kart i podziałem ról, Q&A o kliknięciu i o logo Suntago; plan wdrożenia na końcu ze stanem kroków. |
 | 2026-09-19 | Scena 3, pierwszy odcinek: moduł `factory` (intake z `catalog.product.created` → proces orkiestratora → PR ze stroną produktu, wynik procesu = PR). Próba na repo strony przeszła; PR-y próbne zamknięte. |
 | 2026-09-19 | Scena 3 na tablicy: intake tworzy zadanie DEMO delegowane do Factory, `factory.deliver` otwiera PR i przesuwa zadanie do „In review”, „Zatwierdź i opublikuj” merguje PR i zamyka zadanie. |
+| 2026-09-19 | Agent Developer (spec wykonania, EX-P0): zmianę na stronie robi agent OpenCode w jednorazowym kontenerze z node (jedyna ścieżka; deterministyczny generator strony usunięty), a szuflada zadania pokazuje diff, checki i podgląd przed „Zatwierdź i opublikuj”. |

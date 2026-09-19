@@ -15,7 +15,7 @@ import { assignSchema, delegateSchema, undelegateSchema } from '../data/validato
 import { emitTaskDelegationEvent } from '../events'
 import { requireFeature, readTaskAssignmentGraceDays, type TaskScope } from '../lib/auth'
 import { hasReachedMilestone, isAllowedProcessTransition, mapProcessStatus, type DelegationOutcome, type ProcessTaskStatus } from '../lib/transitionPolicy'
-import { authorizeInternalTaskTransition, rememberCreatedTaskColumn, revokeInternalTaskTransition } from '../lib/columnContext'
+import { authorizeInternalTaskTransition, revokeInternalTaskTransition } from '../lib/columnContext'
 import { requireProcessAuthority } from '../lib/processAuthority'
 import { readTaskSnapshot } from '../lib/taskSnapshot'
 import type {
@@ -32,7 +32,6 @@ import type {
   UndelegateTaskInput,
   UndelegateTaskResult,
 } from './types'
-import { FACTORY_COLUMNS } from '../lib/factoryColumns'
 
 const logger = createLogger('task_delegation').child({ component: 'task-commands' })
 const UUID = z.string().uuid()
@@ -70,31 +69,7 @@ async function requireProjectAccess(ctx: CommandRuntimeContext, em: EntityManage
 }
 
 
-async function ensureFactoryColumns(ctx: CommandRuntimeContext, projectId: string, feature: 'task_delegation.delegate' | 'task_delegation.process'): Promise<Map<string, string>> {
-  const scope = await requireFeature(ctx, feature)
-  const queryEngine = ctx.container.resolve<QueryEngine>('queryEngine')
-  const existing = await queryEngine.query<StatusRow>('staff:staff_time_task_status', {
-    fields: ['id', 'slug'], filters: { time_project_id: projectId }, page: { page: 1, pageSize: 100 },
-    tenantId: scope.tenantId, organizationId: scope.organizationId,
-  })
-  const ids = new Map(existing.items.map((status) => [status.slug, status.id]))
-  const bus = ctx.container.resolve<CommandBus>('commandBus')
-  for (const column of FACTORY_COLUMNS) {
-    if (ids.has(column.slug)) continue
-    const created = await bus.execute<Record<string, unknown>, { taskStatusId: string }>('staff.timesheets.task_statuses.create', {
-      input: { tenantId: scope.tenantId, organizationId: scope.organizationId, timeProjectId: projectId, ...column },
-      ctx,
-    })
-    ids.set(column.slug, created.result.taskStatusId)
-    rememberCreatedTaskColumn(ctx.auth, created.result.taskStatusId, column.slug)
-  }
-  return ids
-}
-
 async function resolveStatus(ctx: CommandRuntimeContext, projectId: string, slug: string, feature: 'task_delegation.delegate' | 'task_delegation.process'): Promise<StatusRow> {
-  const columns = await ensureFactoryColumns(ctx, projectId, feature)
-  const id = columns.get(slug)
-  if (id) return { id, slug }
   const scope = await requireFeature(ctx, feature)
   const queried = await ctx.container.resolve<QueryEngine>('queryEngine').query<StatusRow>('staff:staff_time_task_status', {
     fields: ['id', 'slug'], filters: { time_project_id: projectId, slug }, page: { page: 1, pageSize: 1 },
@@ -189,7 +164,7 @@ const delegateTaskCommand: CommandHandler<DelegateTaskInput, DelegateTaskResult>
     const hasOrchestrator = typeof (ctx.container as { hasRegistration?: (name: string) => boolean }).hasRegistration === 'function'
       && ctx.container.hasRegistration('ProcessDefinition')
       && ctx.container.hasRegistration('AgentPrincipal')
-    if (!hasOrchestrator) throw await taskError(503, 'orchestrator_unavailable', 'task_delegation.errors.orchestratorUnavailable', 'The factory orchestrator is unavailable.')
+    if (!hasOrchestrator) throw await taskError(503, 'orchestrator_unavailable', 'task_delegation.errors.orchestratorUnavailable', 'The agent orchestrator is unavailable.')
     const decryptScope = { tenantId: scope.tenantId, organizationId: scope.organizationId }
     const user = await findOneWithDecryption(em, User, { id: input.agentUserId, ...decryptScope, kind: 'agent', deletedAt: null }, {}, decryptScope)
     const principal = await findOneWithDecryption(em, AgentPrincipal, { userId: input.agentUserId, ...decryptScope, enabled: true, deletedAt: null }, {}, decryptScope)
@@ -197,7 +172,7 @@ const delegateTaskCommand: CommandHandler<DelegateTaskInput, DelegateTaskResult>
     const definition = await findOneWithDecryption(em, ProcessDefinition, { name: 'factory.deliver', ...decryptScope, enabled: true, deletedAt: null }, {}, decryptScope)
     const manual = definition?.triggers?.some((trigger) => trigger.kind === 'manual') ?? false
     if (!definition || !manual || principal.agentDefinitionId !== 'factory') {
-      throw await taskError(503, 'orchestrator_unavailable', 'task_delegation.errors.orchestratorUnavailable', 'The factory orchestrator is unavailable.')
+      throw await taskError(503, 'orchestrator_unavailable', 'task_delegation.errors.orchestratorUnavailable', 'The agent orchestrator is unavailable.')
     }
     const existing = await em.findOne(TaskDelegation, { ...decryptScope, taskId: input.taskId, releasedAt: null })
     if (existing) throw await taskError(409, 'already_delegated', 'task_delegation.errors.alreadyDelegated', 'The task already has an active delegation.')
@@ -228,9 +203,9 @@ const delegateTaskCommand: CommandHandler<DelegateTaskInput, DelegateTaskResult>
       throw error
     }
     try {
-      const queued = await resolveStatus(ctx, snapshot.timeProjectId, 'queued', 'task_delegation.delegate')
+      const inProgress = await resolveStatus(ctx, snapshot.timeProjectId, 'in-progress', 'task_delegation.delegate')
       const current = await readTaskSnapshot(ctx.container.resolve<QueryEngine>('queryEngine'), scope, { taskId: snapshot.taskId })
-      await withExpectedVersion(ctx, current.updatedAt, () => runInternalStaffStatus(ctx, snapshot.taskId, queued))
+      await withExpectedVersion(ctx, current.updatedAt, () => runInternalStaffStatus(ctx, snapshot.taskId, inProgress))
     } catch (error) {
       // The task never left Backlog, so the claim must not survive.
       await em.nativeDelete(TaskDelegation, { ...decryptScope, id: delegation.id })
@@ -285,7 +260,7 @@ const undelegateTaskCommand: CommandHandler<UndelegateTaskInput, UndelegateTaskR
     if (delegation.processInstanceId) {
       const hasProcessInstances = typeof (ctx.container as { hasRegistration?: (name: string) => boolean }).hasRegistration === 'function'
         && ctx.container.hasRegistration('ProcessInstance')
-      if (!hasProcessInstances) throw await taskError(503, 'orchestrator_unavailable', 'task_delegation.errors.orchestratorUnavailable', 'The factory orchestrator is unavailable.')
+      if (!hasProcessInstances) throw await taskError(503, 'orchestrator_unavailable', 'task_delegation.errors.orchestratorUnavailable', 'The agent orchestrator is unavailable.')
       const process = await findOneWithDecryption(em, ProcessInstance, { id: delegation.processInstanceId, tenantId: scope.tenantId, organizationId: scope.organizationId, deletedAt: null }, {}, { tenantId: scope.tenantId, organizationId: scope.organizationId })
       if (process && hasReachedMilestone(process.milestonesReached, 'sized')) {
         throw await taskError(409, 'decision_pending', 'task_delegation.errors.decisionPending', 'The task has reached the sizing decision.', { processInstanceId: process.id })
