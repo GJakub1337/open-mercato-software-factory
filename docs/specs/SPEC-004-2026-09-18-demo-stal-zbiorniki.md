@@ -180,6 +180,10 @@ realizacja to wpis w rejestrze i strona TSX, więc PR fabryki dodaje pliki, nie 
 
 ## Plan wdrożenia
 
+Plan lokalnego odchudzenia interfejsu do trzech scen Marka jest opisany w
+[`docs/plans/2026-09-19-marek-demo-interface.md`](../plans/2026-09-19-marek-demo-interface.md).
+SPEC-004 pozostaje źródłem prawdy o przebiegu pitchu i gotowości funkcjonalnej scen.
+
 ### Faza 1: Dane i skrypt
 
 1. `demo_fixtures` z seedem katalogu i CLI. **Zrobione.**
@@ -231,3 +235,4 @@ realizacja to wpis w rejestrze i strona TSX, więc PR fabryki dodaje pliki, nie 
 | 2026-09-19 | Scena 3, pierwszy odcinek: moduł `factory` (intake z `catalog.product.created` → proces orkiestratora → PR ze stroną produktu, wynik procesu = PR). Próba na repo strony przeszła; PR-y próbne zamknięte. |
 | 2026-09-19 | Scena 3 na tablicy: intake tworzy zadanie DEMO delegowane do Factory, `factory.deliver` otwiera PR i przesuwa zadanie do „In review”, „Zatwierdź i opublikuj” merguje PR i zamyka zadanie. |
 | 2026-09-19 | Agent Developer (spec wykonania, EX-P0): zmianę na stronie robi agent OpenCode w jednorazowym kontenerze z node (jedyna ścieżka; deterministyczny generator strony usunięty), a szuflada zadania pokazuje diff, checki i podgląd przed „Zatwierdź i opublikuj”. |
+| 2026-09-19 | Dodano powiązany plan odchudzonego interfejsu dla Marka: cztery miejsca pracy w menu, istniejący czat AI w nagłówku, osobna rola demo i mapowanie na trzy sceny na żywo. |
