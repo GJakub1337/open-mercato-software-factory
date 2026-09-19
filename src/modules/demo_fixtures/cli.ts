@@ -2,6 +2,7 @@ import type { EntityManager } from '@mikro-orm/postgresql'
 import type { ModuleCli } from '@open-mercato/shared/modules/registry'
 import { createRequestContainer } from '@open-mercato/shared/lib/di/container'
 import { seedStalZbiornikiDemo } from './lib/stalZbiorniki'
+import { seedTasksDemo } from '../tasks/lib/demoSetup'
 
 const USAGE = 'Usage: mercato demo_fixtures seed-stal-zbiorniki --tenant <tenantId> --org <organizationId>'
 
@@ -15,8 +16,8 @@ function readFlag(args: string[], ...names: string[]): string | undefined {
 }
 
 // For a demo instance initialised with `--no-examples`: seeds only the Stal-Zbiorniki
-// demo data (catalog, the Park of Poland customer and its order), without core's furniture
-// examples.
+// demo data (catalog, the Park of Poland customer and its order, the DEMO task board), without
+// core's furniture examples.
 const seedDemo: ModuleCli = {
   command: 'seed-stal-zbiorniki',
   async run(rest) {
@@ -34,6 +35,9 @@ const seedDemo: ModuleCli = {
       `Stal-Zbiorniki (org=${organizationId}, tenant=${tenantId}): ${result.products} products created, ` +
         `customer Park of Poland ${created(result.customer)}, order SO-2026-0042 ${created(result.order)}`,
     )
+    // The board scenes delegate tasks on the DEMO project to the factory agent (SPEC-004).
+    const board = await seedTasksDemo(container, { tenantId, organizationId })
+    console.log(`Task board: DEMO project ${board.projectId}, factory agent ${board.agentUserId ?? 'skipped (orchestrator disabled)'}`)
   },
 }
 
