@@ -1008,7 +1008,9 @@ side without framing it as a race (SuperPlane's velocity tab), goes on the board
 - **Waiver merge mechanics on GitHub.** The waiver needs a merge identity (a second GitHub App)
   allowed past the required-review rule for waiver classes only, e.g. a ruleset bypass for that
   app, while the coding bot stays unable to merge. Confirm rulesets can express this per PR rather
-  than per branch. Resolves: before the first waiver is enabled; not needed for the hackathon.
+  than per branch. Resolves: before the first waiver is enabled. The demo site takes the simple
+  form, one ruleset on `main` with a bypass for the merge App and a required approval that the
+  coding bot cannot give itself ([SPEC-005](./SPEC-005-2026-09-19-stal-zbiorniki-www.md)).
 - **Preview hosting and cost.** SPEC-003 keeps previews on the runner VM behind a per-project
   cap. Still open: hand off to the repo's own preview environments where they exist. Resolves:
   when the first real target is wired.
@@ -1030,3 +1032,4 @@ side without framing it as a race (SuperPlane's velocity tab), goes on the board
 | 2026-09-18 | Tasks, projects, the board and comments now come from the core `staff` module (SPEC-002 rebuilt on it); `tasks` keeps delegation, the guard and the workflow-safe commands; configuration keys on the project id. |
 | 2026-09-18 | Non-code effects and run visibility moved to SPEC-003: `factory.operator`, the `non_code` branch through one effector function with compare-and-set, catalog-correction and support-reply scenarios, action rows in the review map, the runner manifest and progress events. |
 | 2026-09-18 | Demo storyline and company moved to SPEC-004 (Stal-Zbiorniki, a steel-tank manufacturer); catalog-correction example now ZDP-5000. |
+| 2026-09-19 | Demo target site (SPEC-005): waiver merged by a second App via a ruleset bypass; `factory/catalog-match` status as a waiver condition; repo-hosted previews. |

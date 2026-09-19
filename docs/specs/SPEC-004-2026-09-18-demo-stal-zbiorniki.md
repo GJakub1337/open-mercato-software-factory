@@ -19,11 +19,9 @@ stronę, plany awaryjne i odpowiedzi na Q&A. Nie dodaje żadnego zachowania prod
 
 ## Otwarte pytania
 
-- **Q1. Stack docelowej strony.** (a) WordPress, czyli to, co miałaby prawdziwa firma. Jego
-  strony żyją w bazie danych, więc preview dla każdego uruchomienia wymaga osobnej bazy. (b) Strona
-  statyczna (Astro albo eksport Next), w której każdy produkt to plik Markdown w repo. PR jest
-  wtedy czytelnym diffem, a preview na Vercel lub Cloudflare dostajemy za darmo. Rekomendacja: (b),
-  ostylowana jak prawdziwa strona i przedstawiana jako „strona firmy”. WordPress trafia na slajd
+- **Q1. Stack docelowej strony.** Rozstrzygnięte 2026-09-19: Next ze static export, strona TSX na
+  produkt w repo, preview na Vercelu, publiczne repo `hackaton-stal-zbiorniki-landing`
+  ([SPEC-005](./SPEC-005-2026-09-19-stal-zbiorniki-www.md)). WordPress zostaje na slajdzie
   z roadmapą.
 - **Q2. Język pitchu.** Polski (jury i persona) albo angielski (odbiorcy Open Mercato). Slajdy
   i dane na ekranie idą za tym wyborem. Seedowany katalog jest po polsku w obu przypadkach, bo
@@ -87,9 +85,11 @@ Seedowane przez moduł `demo_fixtures` (`src/modules/demo_fixtures/lib/stalZbior
   a wymiary są puste. Scena 2 to poprawia. Seeder jest idempotentny po handle i nigdy nie
   nadpisuje, więc poprawiony rekord zostaje poprawiony po kolejnych seedach. Żeby zresetować stan
   między próbami, trzeba odtworzyć tenant demo.
-- **`ZWM-1500` nie jest seedowany.** Marek dodaje go na żywo w scenie 3: tytuł *Zbiornik mobilny
-  na wodę pitną 1500 l*, SKU `ZWM-1500`, stal nierdzewna 1.4301, PZH, 1500 l, 11 900 PLN netto,
-  w kategorii „Od ręki”.
+- **`ZWM-1500` nie jest seedowany.** Marek dodaje go na żywo w scenie 3, w samym formularzu
+  tworzenia produktu (metadata da się edytować dopiero po utworzeniu): tytuł *Zbiornik mobilny
+  na wodę pitną 1500 l*, podtytuł *Stal nierdzewna 1.4301, atest PZH*, SKU `ZWM-1500`, 11 900 PLN
+  netto, kategorie „Zbiorniki na wodę pitną” i „Od ręki”. Pojemność, materiał i atest agent
+  wyprowadza z tytułu i podtytułu (mapowanie w SPEC-005).
 
 Seedowanie zapisuje przez entity manager, tak jak przykładowy seeder katalogu w core, więc nie
 emituje `catalog.product.created` i nigdy nie uruchamia fabryki.
@@ -108,14 +108,15 @@ seeder katalogu w core zapisuje kanał sprzedaży i stawki podatku, a SPEC-003 i
 
 ## Docelowa strona
 
-Osobne repo, `stal-zbiorniki-www`, z takim samym wyglądem jak prawdziwa strona: strona główna,
-strony kategorii, „Od ręki”, szablon strony produktu i `regulamin` (warunki sprzedaży). Jej build
-czyta produkty z plików w repo (Q1 (b)), więc PR ze sceny 3 dodaje jeden plik i obrazek. Ma:
+Osobne publiczne repo, `hackaton-stal-zbiorniki-landing` ([SPEC-005](./SPEC-005-2026-09-19-stal-zbiorniki-www.md)), z takim samym wyglądem jak prawdziwa strona: strona główna,
+„Od ręki”, strony produktów i `regulamin` (warunki sprzedaży). Każdy produkt to strona TSX w repo,
+więc PR ze sceny 3 dodaje jedną stronę i jedną linię w rejestrze produktów. Ma:
 
-- deployment preview dla każdego PR, do którego linkuje ścieżka recenzji;
-- test Playwright sprawdzający, że strona nowego produktu się renderuje i pojawia w „Od ręki”. To
-  teza „done sprawdzane względem danych” ze SPEC-001, bo test czyta SKU z zadania;
-- zainstalowaną GitHub App ze SPEC-001 i ochronę gałęzi z jednym wymaganym checkiem.
+- preview na Vercelu dla każdego PR, do którego linkuje ścieżka recenzji;
+- check `site` (build + Playwright sterowany danymi) wymagany na `main`;
+- status `factory/catalog-match`, w którym runner porównuje preview z rekordem z katalogu. To
+  teza „done sprawdzane względem danych” ze SPEC-001 i warunek waivera;
+- GitHub App fabryki bez prawa merge'a i osobną App do merge'a waivera.
 
 ## Plany awaryjne
 
@@ -169,10 +170,11 @@ Prawdopodobne pytania i odpowiedź w dwóch zdaniach na każde:
 
 ### Faza 2: Strona (sobota rano, właściciel infrastruktury)
 
-3. Repo `stal-zbiorniki-www` (zgodnie z Q1), produkty jako pliki, strony „Od ręki” i `regulamin`,
+3. Repo `hackaton-stal-zbiorniki-landing` według SPEC-005, produkty jako strony TSX, strony „Od ręki” i `regulamin`,
    preview dla każdego PR. *Test:* ręcznie zrobiony PR dodający `ZWM-1500` dostaje preview
    pokazujące go w „Od ręki”.
-4. Test Playwright czytający SKU. *Test:* nie przechodzi na `main` i przechodzi na PR z kroku 3.
+4. Check `site` i ruleset na `main` według SPEC-005. *Test:* czerwony na PR ze zduplikowanym SKU,
+   zielony na PR z kroku 3.
 
 ### Faza 3: Połączenie scen (sobota, razem z krokami 2–4 ze SPEC-001)
 
@@ -196,3 +198,6 @@ Prawdopodobne pytania i odpowiedź w dwóch zdaniach na każde:
 | Data | Zmiana |
 |------|--------|
 | 2026-09-18 | Szkic: persona i fabuła Stal-Zbiorniki, seed katalogu demo (`demo_fixtures`), docelowa strona, plany awaryjne, Q&A. |
+| 2026-09-19 | Q1 rozstrzygnięte (Astro, Vercel, publiczne repo `hackaton-stal-zbiorniki-landing`); strona opisana w SPEC-005. |
+| 2026-09-19 | ZWM-1500 z kategorią „Zbiorniki na wodę pitną” i parametrami w podtytule; weryfikacja strony przez check `site` i status `factory/catalog-match` (SPEC-005). |
+| 2026-09-19 | Strona na Next ze static export zamiast Astro; produkt to strona TSX (SPEC-005). |
