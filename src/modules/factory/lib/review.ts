@@ -1,7 +1,7 @@
 import type { CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
 import { CrudHttpError } from '@open-mercato/shared/lib/crud/errors'
 import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
-import type { TasksDelegationService } from '../../tasks/lib/delegationService'
+import type { TaskDelegationService } from '../../task_delegation/lib/delegationService'
 import { pullRequestNumberFromUrl, type CheckRun, type GitHubClient, type PullRequestFile } from './github'
 
 export type TaskReview = {
@@ -20,7 +20,7 @@ export type TaskReview = {
  * PRs are read. Null when the task has no factory PR yet.
  */
 export async function readTaskReview(ctx: CommandRuntimeContext, taskId: string, github: GitHubClient): Promise<TaskReview | null> {
-  const service = ctx.container.resolve<TasksDelegationService>('tasksDelegationService')
+  const service = ctx.container.resolve<TaskDelegationService>('taskDelegationService')
   const [item] = await service.getDelegations(ctx, [taskId])
   if (!item) {
     const { translate } = await resolveTranslations()

@@ -1,16 +1,16 @@
 import { runRouteMutationGuards } from '@open-mercato/shared/lib/crud/route-mutation-guard'
 import type { OpenApiRouteDoc } from '@open-mercato/shared/lib/openapi'
 import { z } from 'zod'
-import { withTaskRoute } from '../../../../../tasks/api/route-context'
+import { withTaskRoute } from '../../../../../task_delegation/api/route-context'
 import { approveProductTask } from '../../../../lib/approve'
 import { GitHubClient, readGitHubConfigFromEnv } from '../../../../lib/github'
 
 const paramsSchema = z.object({ taskId: z.string().uuid() })
 
-export const metadata = { POST: { requireAuth: true, requireFeatures: ['tasks.delegate'] } }
+export const metadata = { POST: { requireAuth: true, requireFeatures: ['task_delegation.delegate'] } }
 
 export async function POST(request: Request, route: { params: Promise<{ taskId: string }> }) {
-  return withTaskRoute(request, ['tasks.delegate'], async ({ commandContext, userId, tenantId, organizationId, userFeatures }) => {
+  return withTaskRoute(request, ['task_delegation.delegate'], async ({ commandContext, userId, tenantId, organizationId, userFeatures }) => {
     const { taskId } = paramsSchema.parse(await route.params)
     const guards = await runRouteMutationGuards({
       container: commandContext.container, req: request,

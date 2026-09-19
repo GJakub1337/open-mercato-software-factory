@@ -43,7 +43,7 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'staff', from: '@open-mercato/core' },
   { id: 'task_tools', from: '@app' },
   // Agent delegation on the staff board (SPEC-002), through staff's extension contracts.
-  { id: 'tasks', from: '@app' },
+  { id: 'task_delegation', from: '@app' },
 ]
 
 const enterpriseModulesEnabled = parseBooleanWithDefault(process.env.OM_ENABLE_ENTERPRISE_MODULES, false)

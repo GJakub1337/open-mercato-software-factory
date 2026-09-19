@@ -1,15 +1,15 @@
 import type { OpenApiRouteDoc } from '@open-mercato/shared/lib/openapi'
 import { z } from 'zod'
-import { withTaskRoute } from '../../../../../tasks/api/route-context'
+import { withTaskRoute } from '../../../../../task_delegation/api/route-context'
 import { readTaskReview } from '../../../../lib/review'
 import { GitHubClient, readGitHubConfigFromEnv } from '../../../../lib/github'
 
 const paramsSchema = z.object({ taskId: z.string().uuid() })
 
-export const metadata = { GET: { requireAuth: true, requireFeatures: ['tasks.view'] } }
+export const metadata = { GET: { requireAuth: true, requireFeatures: ['task_delegation.view'] } }
 
 export async function GET(request: Request, route: { params: Promise<{ taskId: string }> }) {
-  return withTaskRoute(request, ['tasks.view'], async ({ commandContext }) => {
+  return withTaskRoute(request, ['task_delegation.view'], async ({ commandContext }) => {
     const { taskId } = paramsSchema.parse(await route.params)
     const review = await readTaskReview(commandContext, taskId, new GitHubClient(readGitHubConfigFromEnv()))
     return Response.json({ review })

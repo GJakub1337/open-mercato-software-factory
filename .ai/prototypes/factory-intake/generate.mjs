@@ -311,7 +311,7 @@ function drawer(t, o = {}, mobile) {
       <div class="menu-item is-active">${agentMark()}<div><b>${AGENT}</b><div class="t-hint">Researches, sizes, designs for your approval, then opens a PR. Starts a run of <code>factory.deliver</code>.</div></div></div>
       <div class="menu-item">${ic('ban')}<div>No delegate</div></div>
       <div class="tk-pop-foot">You stay the assignee. You can take it back until the plan is sized.</div></div>` : ''
-  const reason = o.delegatePicker === 'disabled' ? `<div class="tk-reason">Delegating to an agent needs the <code>tasks.delegate</code> permission. Ask an admin, or ask Tomasz Lis to delegate it.</div>` : ''
+  const reason = o.delegatePicker === 'disabled' ? `<div class="tk-reason">Delegating to an agent needs the <code>task_delegation.delegate</code> permission. Ask an admin, or ask Tomasz Lis to delegate it.</div>` : ''
   const side = `<dl class="tk-props" style="margin:0">
       ${prop('Status', statusBadge(t.status))}
       ${t.delegate ? prop('Run', runBadge(t.run, t.runFor)) : ''}
@@ -432,7 +432,7 @@ function chat(stage) {
   const after = [
     msg('ai', `<div class="alert alert-success">${ic('check-circle')}<div><div class="alert-title">Action applied</div><div>WEB-13 was created and delegated to the ${AGENT}.</div><div class="tk-inline-links" style="margin-top:0.375rem"><a class="btn btn-outline btn-xs">View task WEB-13 ${ic('external')}</a></div></div></div><p>From here it runs on the board. You’ll get a Caseload item if the agent needs a decision.</p>`),
     msg('you', `<p>What’s happening with WEB-11?</p>`),
-    msg('ai', `${tools([['task_tools.get_task', 'WEB-11'], ['tasks.get_delegation', 'WEB-11']])}<p><b>WEB-11 · Add EU shipping calculator to checkout</b> is <b>In design</b>. The ${AGENT}’s plan has been waiting for your approval in the Caseload for 18 minutes: it recommends a zone table in the storefront, in 3 PRs.</p><div class="tk-inline-links"><a class="btn btn-primary btn-xs">Open in Caseload</a><a class="btn btn-outline btn-xs">Open task</a></div>`),
+    msg('ai', `${tools([['task_tools.get_task', 'WEB-11'], ['task_delegation.get_delegation', 'WEB-11']])}<p><b>WEB-11 · Add EU shipping calculator to checkout</b> is <b>In design</b>. The ${AGENT}’s plan has been waiting for your approval in the Caseload for 18 minutes: it recommends a zone table in the storefront, in 3 PRs.</p><div class="tk-inline-links"><a class="btn btn-primary btn-xs">Open in Caseload</a><a class="btn btn-outline btn-xs">Open task</a></div>`),
   ]
   const msgs = stage === 'propose' ? [...intro, propose] : [...intro.slice(0, 1), msg('ai', `<p class="muted" style="font-size:0.75rem">…3 earlier messages</p>`), ...after]
   return `<div class="tk-chat">
@@ -515,14 +515,14 @@ const screens = [
     html: both((mobile) => shell({ url: `${BOARD_URL}&task=WEB-14`, mobile, nav: 'tasks', crumbs: ['Tasks', 'WEB · Company website'], tall: '46rem', page: board({ focus: 'WEB-14', mobileCol: 'open' }, mobile),
       overlay: drawer(T.web14, { delegatePicker: 'open', links: [{ icon: 'paperclip', label: 'room-clearance.pdf', sub: 'Attachment · 212 KB' }], timeline: tl.web14 }, mobile) })),
     notes: [
-      'Picking the agent sets the status to Queued and emits <code>tasks.task.delegated</code>; within a second the card shows “Starting…”.',
-      'The picker lists agent principals from <code>GET /api/tasks/agents</code>. Title and body stay editable only while the task is Open.',
+      'Picking the agent sets the status to Queued and emits <code>task_delegation.task.delegated</code>; within a second the card shows “Starting…”.',
+      'The picker lists agent principals from <code>GET /api/task_delegation/agents</code>. Title and body stay editable only while the task is Open.',
     ],
   },
   {
-    id: 's6', nav: 'No permission', title: 'Drawer, user without tasks.delegate',
+    id: 's6', nav: 'No permission', title: 'Drawer, user without task_delegation.delegate',
     task: 'Tomasz’s colleague can create and edit tasks but not hand them to an agent.',
-    refs: ['SPEC-002 · User stories (picker disabled)', 'ACL · tasks.delegate'],
+    refs: ['SPEC-002 · User stories (picker disabled)', 'ACL · task_delegation.delegate'],
     html: both((mobile) => shell({ url: `${BOARD_URL}&task=WEB-14`, mobile, nav: 'tasks', crumbs: ['Tasks', 'WEB · Company website'], tall: '44rem', page: board({ focus: 'WEB-14', mobileCol: 'open' }, mobile),
       overlay: drawer(T.web14, { delegatePicker: 'disabled', timeline: tl.web14 }, mobile) })),
     notes: ['The picker is shown disabled with the reason, not hidden, so people learn delegation exists and who to ask.'],
@@ -620,7 +620,7 @@ const screens = [
       'No new chat UI: this is OM 0.8’s AI dock and <code>AiChat</code>. We add one agent (<code>tasks.intake</code>) and one write tool (<code>tasks_create</code>).',
       'The product chip is an attached record: 0.8 attaches nothing automatically, so Maya attached it. The agent quotes it in the body.',
       'The card is OM’s standard mutation approval (<code>prepareMutation</code>): nothing is written before Confirm, and it runs the board’s own create and delegate commands as Maya.',
-      'Without <code>tasks.delegate</code> the card reads “Creates 1 task in WEB. You can’t delegate to agents, so it waits in Open.” and the delegate row is empty.',
+      'Without <code>task_delegation.delegate</code> the card reads “Creates 1 task in WEB. You can’t delegate to agents, so it waits in Open.” and the delegate row is empty.',
     ],
   },
   {
@@ -632,7 +632,7 @@ const screens = [
     notes: [
       'The chat hands off: progress, the design gate and the PR live on the board, the drawer and the Caseload, never as a stream in the chat.',
       '<code>source=chat</code> with the conversation and message id as <code>source_ref</code>, so a retried Confirm can’t create WEB-13 twice.',
-      'Status questions are read-only (<code>task_tools.get_task</code>, <code>tasks.get_delegation</code>, <code>task_tools.search_tasks</code>) and answer with links, not copies of the plan.',
+      'Status questions are read-only (<code>task_tools.get_task</code>, <code>task_delegation.get_delegation</code>, <code>task_tools.search_tasks</code>) and answer with links, not copies of the plan.',
     ],
   },
 ]

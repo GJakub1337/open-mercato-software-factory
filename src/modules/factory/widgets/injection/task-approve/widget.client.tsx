@@ -53,7 +53,7 @@ export default function TaskApprove({ context }: { context?: { taskId?: string }
   const [saving, setSaving] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const refresh = React.useCallback(() => setRevision((value) => value + 1), [])
-  useAppEvent('tasks.task.*', refresh)
+  useAppEvent('task_delegation.task.*', refresh)
 
   React.useEffect(() => {
     if (!taskId) { setLoading(false); return }

@@ -46,9 +46,9 @@ it('drives the bound task through the tasks commands as the execution principal'
   await deliver({}, context)
   const identity = { taskId: 'task-1', delegationId: 'delegation-1', processInstanceId: 'process-1' }
   expect(execute.mock.calls.map(([id, args]) => [id, args.input])).toEqual([
-    ['tasks.task.set_status', { ...identity, stepId: `${DELIVER_FUNCTION}:in_progress`, status: 'in_progress' }],
-    ['tasks.task.link', { ...identity, stepId: `${DELIVER_FUNCTION}:pr`, kind: 'pr', ref: 'PR #7 · ZWM-1500', url: 'https://github.com/o/r/pull/7' }],
-    ['tasks.task.set_status', { ...identity, stepId: `${DELIVER_FUNCTION}:in_review`, status: 'in_review' }],
+    ['task_delegation.task.set_status', { ...identity, stepId: `${DELIVER_FUNCTION}:in_progress`, status: 'in_progress' }],
+    ['task_delegation.task.link', { ...identity, stepId: `${DELIVER_FUNCTION}:pr`, kind: 'pr', ref: 'PR #7 · ZWM-1500', url: 'https://github.com/o/r/pull/7' }],
+    ['task_delegation.task.set_status', { ...identity, stepId: `${DELIVER_FUNCTION}:in_review`, status: 'in_review' }],
   ])
   expect(execute.mock.calls.every(([, args]) => args.ctx.auth.sub === 'principal-1')).toBe(true)
   expect(produceChange).toHaveBeenCalledWith(expect.anything(), scope, { id: 'task-1', title: 'Opublikuj stronę produktu ZWM-1500', description }, productId)
@@ -72,8 +72,8 @@ it('passes a task without a product link on, and closes the task with the reason
   await expect(deliver({}, context)).rejects.toThrow('without changing any file')
   expect(produceChange).toHaveBeenCalledWith(expect.anything(), scope, expect.objectContaining({ id: 'task-1' }), null)
   expect(execute.mock.calls.map(([id, args]) => [id, args.input.status])).toEqual([
-    ['tasks.task.set_status', 'in_progress'],
-    ['tasks.task.set_status', 'failed'],
+    ['task_delegation.task.set_status', 'in_progress'],
+    ['task_delegation.task.set_status', 'failed'],
   ])
   expect(execute.mock.calls[1]![1].input.reason).toContain('without changing any file')
 })
