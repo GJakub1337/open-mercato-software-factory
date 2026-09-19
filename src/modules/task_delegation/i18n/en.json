@@ -27,7 +27,7 @@
   "task_delegation.errors.backlogOnly": "Only backlog tasks can be delegated.",
   "task_delegation.errors.assigneeRequired": "A human assignee is required before delegation.",
   "task_delegation.errors.invalidAgent": "The selected user is not an enabled agent principal.",
-  "task_delegation.errors.orchestratorUnavailable": "The factory orchestrator is unavailable.",
+  "task_delegation.errors.orchestratorUnavailable": "The agent orchestrator is unavailable.",
   "task_delegation.errors.alreadyDelegated": "The task already has an active delegation.",
   "task_delegation.errors.decisionPending": "The task has reached the sizing decision.",
   "task_delegation.errors.invalidTransition": "The process status transition is not allowed.",

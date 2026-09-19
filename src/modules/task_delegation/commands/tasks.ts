@@ -185,7 +185,7 @@ const delegateTaskCommand: CommandHandler<DelegateTaskInput, DelegateTaskResult>
     const hasOrchestrator = typeof (ctx.container as { hasRegistration?: (name: string) => boolean }).hasRegistration === 'function'
       && ctx.container.hasRegistration('ProcessDefinition')
       && ctx.container.hasRegistration('AgentPrincipal')
-    if (!hasOrchestrator) throw await taskError(503, 'orchestrator_unavailable', 'task_delegation.errors.orchestratorUnavailable', 'The factory orchestrator is unavailable.')
+    if (!hasOrchestrator) throw await taskError(503, 'orchestrator_unavailable', 'task_delegation.errors.orchestratorUnavailable', 'The agent orchestrator is unavailable.')
     const decryptScope = { tenantId: scope.tenantId, organizationId: scope.organizationId }
     const user = await findOneWithDecryption(em, User, { id: input.agentUserId, ...decryptScope, kind: 'agent', deletedAt: null }, {}, decryptScope)
     const principal = await findOneWithDecryption(em, AgentPrincipal, { userId: input.agentUserId, ...decryptScope, enabled: true, deletedAt: null }, {}, decryptScope)
@@ -193,7 +193,7 @@ const delegateTaskCommand: CommandHandler<DelegateTaskInput, DelegateTaskResult>
     const definition = await findOneWithDecryption(em, ProcessDefinition, { name: 'factory.deliver', ...decryptScope, enabled: true, deletedAt: null }, {}, decryptScope)
     const manual = definition?.triggers?.some((trigger) => trigger.kind === 'manual') ?? false
     if (!definition || !manual || principal.agentDefinitionId !== 'factory') {
-      throw await taskError(503, 'orchestrator_unavailable', 'task_delegation.errors.orchestratorUnavailable', 'The factory orchestrator is unavailable.')
+      throw await taskError(503, 'orchestrator_unavailable', 'task_delegation.errors.orchestratorUnavailable', 'The agent orchestrator is unavailable.')
     }
     const existing = await em.findOne(TaskDelegation, { ...decryptScope, taskId: input.taskId, releasedAt: null })
     if (existing) throw await taskError(409, 'already_delegated', 'task_delegation.errors.alreadyDelegated', 'The task already has an active delegation.')
@@ -281,7 +281,7 @@ const undelegateTaskCommand: CommandHandler<UndelegateTaskInput, UndelegateTaskR
     if (delegation.processInstanceId) {
       const hasProcessInstances = typeof (ctx.container as { hasRegistration?: (name: string) => boolean }).hasRegistration === 'function'
         && ctx.container.hasRegistration('ProcessInstance')
-      if (!hasProcessInstances) throw await taskError(503, 'orchestrator_unavailable', 'task_delegation.errors.orchestratorUnavailable', 'The factory orchestrator is unavailable.')
+      if (!hasProcessInstances) throw await taskError(503, 'orchestrator_unavailable', 'task_delegation.errors.orchestratorUnavailable', 'The agent orchestrator is unavailable.')
       const process = await findOneWithDecryption(em, ProcessInstance, { id: delegation.processInstanceId, tenantId: scope.tenantId, organizationId: scope.organizationId, deletedAt: null }, {}, { tenantId: scope.tenantId, organizationId: scope.organizationId })
       if (process && hasReachedMilestone(process.milestonesReached, 'sized')) {
         throw await taskError(409, 'decision_pending', 'task_delegation.errors.decisionPending', 'The task has reached the sizing decision.', { processInstanceId: process.id })
