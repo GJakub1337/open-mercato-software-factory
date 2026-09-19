@@ -111,7 +111,7 @@ bez modelu.
 - `web_fetch` dostaje tylko researcher (read-only, propose-only); runner dostaje gotowy URL logo
   w slice'ie i pobiera go sam.
 
-## Scena 3b (SPEC-004, 3:40–4:30)
+## Scena 3b (SPEC-004, 3:30–4:30)
 
 Handlowiec zmienia status zamówienia Park of Poland na *Fulfilled*. Tablica pokazuje zadanie
 delegowane, z `sales.order.updated`. Przeskok do gotowego uruchomienia: artefakt researchera
