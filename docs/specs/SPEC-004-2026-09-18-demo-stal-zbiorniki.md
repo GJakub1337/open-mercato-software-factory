@@ -63,7 +63,7 @@ and deploy” przy każdym merge'u, co pasuje do decyzji „klik Marka” poniż
 Tekst do powiedzenia jest w notatkach slajdów: `N` otwiera okno prelegenta z notatkami,
 następnym slajdem i zegarem 5:00. Strzałki przełączają slajd w obu oknach, `B` wygasza ekran,
 `P` drukuje do PDF. Kolejność: tytuł stawia problem („Firma zmienia się codziennie. Jej
-strona — raz na dwa tygodnie.”), hook pokazuje go na Marku, a slajd „Jak to działa” robi zwrot
+strona — niekoniecznie.”), hook pokazuje go na Marku, a slajd „Jak to działa” robi zwrot
 („Marek nie ma programisty. Ma Open Mercato.”), zapowiada sceny i zajmuje 10 s z czasu demo.
 Na slajdach są same hasła; szczegóły (parametry próby, pozostałe kierunki „co dalej”) są w
 notatkach. Podziękowanie pokazuje repo i zespół z logo firm i wisi przez Q&A. Po nim są slajdy
