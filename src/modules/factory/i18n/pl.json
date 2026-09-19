@@ -1,0 +1,16 @@
+{
+  "factory.approve.title": "Zmiana na stronie",
+  "factory.approve.hint": "Sprawdź podgląd w pull requeście, a potem zatwierdź, żeby opublikować stronę.",
+  "factory.approve.openPr": "Otwórz pull request",
+  "factory.approve.action": "Zatwierdź i opublikuj",
+  "factory.approve.working": "Publikuję...",
+  "factory.approve.done": "Opublikowane: pull request zmergowany, zadanie zamknięte.",
+  "factory.approve.errors.generic": "Nie udało się zatwierdzić.",
+  "factory.approve.errors.notFound": "Nie znaleziono zadania.",
+  "factory.approve.errors.notDelegated": "Zadanie nie jest delegowane do fabryki.",
+  "factory.approve.errors.noPullRequest": "Zadanie nie ma jeszcze pull requesta strony.",
+  "factory.approve.errors.notInReview": "Zatwierdzić można tylko zadanie w recenzji.",
+  "factory.approve.errors.assigneeOnly": "Pull request może zatwierdzić tylko osoba przypisana do zadania.",
+  "factory.approve.errors.prClosed": "Pull request został zamknięty bez merge'a.",
+  "factory.approve.errors.mergeBlocked": "GitHub odmówił merge'a: checki nie są zielone albo pull request się zmienił. Sprawdź go ponownie."
+}

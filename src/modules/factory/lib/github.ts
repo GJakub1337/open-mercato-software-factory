@@ -144,4 +144,27 @@ export class GitHubClient {
     })
     return { number: pr!.number, htmlUrl: pr!.html_url, headSha: pr!.head.sha }
   }
+
+  async getPullRequest(number: number): Promise<{ number: number; state: 'open' | 'closed'; merged: boolean; htmlUrl: string; headSha: string } | null> {
+    const pr = await this.request<{ number: number; state: 'open' | 'closed'; merged: boolean; html_url: string; head: { sha: string } }>(
+      'GET', this.repoPath(`/pulls/${number}`), undefined, true,
+    )
+    return pr ? { number: pr.number, state: pr.state, merged: pr.merged, htmlUrl: pr.html_url, headSha: pr.head.sha } : null
+  }
+
+  /**
+   * Squash-merges the PR at exactly `headSha`, so a commit pushed after the approval is never
+   * merged unseen. GitHub refuses (405/409) while required checks are red or the head moved.
+   */
+  async mergePullRequest(number: number, headSha: string): Promise<void> {
+    await this.request('PUT', this.repoPath(`/pulls/${number}/merge`), { merge_method: 'squash', sha: headSha })
+  }
+}
+
+/** The PR number of a URL on `repo`, or null for any other repository. */
+export function pullRequestNumberFromUrl(url: string | null | undefined, repo: string): number | null {
+  if (!url) return null
+  const match = /^https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/pull\/(\d+)\/?$/.exec(url)
+  if (!match || match[1]!.toLowerCase() !== repo.toLowerCase()) return null
+  return Number(match[2])
 }

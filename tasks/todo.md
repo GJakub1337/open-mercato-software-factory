@@ -1,37 +1,32 @@
-# Hackathon: scene 3 intake (catalog → website PR)
+# Scene 3 on the board: catalog → DEMO task → Factory → website PR → Marek approves
 
-Goal: `catalog.product.created` for a product in „Od ręki” starts a factory process that opens a PR
-adding the product page to `jtomaszewski/hackaton-stal-zbiorniki-landing` (SPEC-004 scene 3, SPEC-005 mapping).
-No `tasks` module exists yet, so the visible surface is Backend → Processes (ProcessInstance projection).
+Goal (SPEC-004 scene 3): a product created in „Od ręki” shows up on the DEMO board as a task
+delegated to Factory; the factory run opens the website PR, links it on the task and moves the
+task to In review; Marek approves from the drawer, which merges the PR and closes the task.
 
 ## Plan
 
-- [x] Module `src/modules/factory` (index, README)
-- [x] `lib/productPage.ts`: pure mapping catalog record → `product.ts`, `page.tsx`, registry patch (per landing AGENTS.md table)
-- [x] `lib/catalogRecord.ts`: load product + categories + regular PLN price (tenant/org scoped)
-- [x] `lib/github.ts`: minimal REST client (ref, contents, tree/commit, branch, PR; idempotent on existing PR)
-- [x] `lib/publishProduct.ts`: orchestrates load → map → PR; returns `{ prUrl, prNumber, branch }`
-- [x] `workflows.ts`: code workflow `factory.publish_product` (START → EXECUTE_FUNCTION → SET_VARIABLE outcome → END)
-- [x] `di.ts`: register `workflowFunction:factory.open_product_pr` + descriptor
-- [x] `lib/processDefinition.ts` + `setup.ts`: ensure ProcessDefinition (manual trigger only, per SPEC-001)
-- [x] `subscribers/product-created.ts`: filter „od-reki”, `agent_orchestrator.processes.startExecution` with idempotency `product:<id>`
-- [x] `cli.ts`: `factory publish-product --product <id> [--direct]` for rehearsal/debug
-- [x] `.env.example`: `FACTORY_GITHUB_TOKEN`, `FACTORY_SITE_REPO`, `FACTORY_SITE_BASE_BRANCH`
-- [x] Unit tests for mapping + registry patch
-- [x] `yarn generate && yarn typecheck && yarn lint && yarn test`
-- [x] E2E: seed catalog, create ZWM-1500 through the API, observe process + PR on GitHub, then close PR/delete branch
-- [x] Update SPEC-004/SPEC-001 changelog rows; commit
+- [x] Land the factory module (commit 53bd842) on main
+- [x] `lib/board.ts`: product ↔ task description link; `openProductTask` finds or creates the DEMO
+      task and delegates it to the factory agent (acting as the DEMO project owner)
+- [x] `factory.deliver`: DB-owned workflow `factory.deliver_product` with a least-privilege grant
+      (`tasks.view`, `tasks.process`) + ProcessDefinition `factory.deliver` (manual trigger)
+- [x] `factory.deliver_product_pr` function: process from the engine's workflow instance id →
+      task → product → in_progress → PR → link + in_review, through the tasks commands; any
+      error closes the task as failed (engine emits no instance.failed for async failures)
+- [x] Intake subscriber and CLI switch to the board path; old direct process removed
+- [x] Approval: `POST /api/factory/tasks/:id/approve` + drawer widget (merge at checked head → Done)
+- [x] Unit tests (board, deliver incl. failure/retry, approve rules)
+- [x] Ephemeral run: product → task delegated → real PR #8 (closed) → In review; approve against a
+      fake GitHub → merged + Done; GitHub down → Closed with reason
+- [x] Docs: factory README, SPEC-004 state
+- [x] Gate: generate, typecheck, lint, ds:check, test (143), build
 
 ## Review
 
-- Verified end to end on the local tenant: product created through `POST /api/catalog/products` with
-  categories `woda-pitna` + `od-reki` → subscriber log `factory intake started` → process instance →
-  workflow COMPLETED → PR opened on `jtomaszewski/hackaton-stal-zbiorniki-landing` (three rehearsal
-  PRs #2–#4, all closed, branches deleted) → Vercel preview rendered `/produkty/zwm-1500/` with
-  `data-price-net="11900"`, `data-in-stock="true"`, listed on `/od-reki/`; `site` check passed.
-- Process outcome shows `PR #4 · ZWM-1500` in Backend → Processes (outcome_type `factory:pull_request`).
-- Engine findings (0.8.0): step-level async activities are fire-and-forget and their output stays on
-  the step instance; transition-level async activities park and merge `<activityId>_result`;
-  SET_VARIABLE persists only on transitions. The workflow is shaped accordingly.
-- Not done: board card (`tasks` module), waiver/merge, `done` on merge, milestone projection
-  (`milestones_reached` stays empty although the step declares `milestone: pr_open`).
+- Real GitHub was used only for opening one rehearsal PR (closed, branch deleted); the merge was
+  exercised on a local fake so the live site keeps its pre-pitch state.
+- Framework gap noted in the README: when an async activity fails, 0.8.0 marks the workflow FAILED
+  without `workflows.instance.failed`, so the orchestrator process stays `running`.
+- Still open for the demo: a real rehearsal with Marek's click on the landing repo (then reset
+  the site), and the agent runner in place of the deterministic page generator (SPEC-001).

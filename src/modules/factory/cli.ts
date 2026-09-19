@@ -1,11 +1,10 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
 import type { ModuleCli } from '@open-mercato/shared/modules/registry'
-import type { CommandBus } from '@open-mercato/shared/lib/commands'
 import { createRequestContainer } from '@open-mercato/shared/lib/di/container'
 import { CatalogProduct } from '@open-mercato/core/modules/catalog/data/entities'
 import { GitHubClient, readGitHubConfigFromEnv } from './lib/github'
-import { startProductPublish } from './lib/intake'
-import { ensureFactoryProcessDefinition } from './lib/processDefinition'
+import { openProductTask } from './lib/board'
+import { ensureFactoryDeliver } from './lib/deliver'
 import { publishProductPage } from './lib/publishProduct'
 
 const USAGE = [
@@ -13,9 +12,9 @@ const USAGE = [
   '  mercato factory publish-product --product <productId> --tenant <tenantId> --org <organizationId> [--direct]',
   '  mercato factory ensure-process --tenant <tenantId> --org <organizationId>',
   '',
-  '  publish-product  starts the factory.publish_product process for a product (needs the workers running);',
+  '  publish-product  puts the product on the DEMO board as a task delegated to Factory (needs the workers);',
   '                   with --direct it opens the PR in-process instead, for rehearsals and debugging.',
-  '  ensure-process   creates the process definition for a tenant seeded before this module existed.',
+  '  ensure-process   creates factory.deliver and its workflow for a tenant seeded before this module existed.',
 ].join('\n')
 
 function readFlag(args: string[], ...names: string[]): string | undefined {
@@ -61,16 +60,12 @@ const publishProduct: ModuleCli = {
       console.error(`Product ${productId} not found in org=${scope.organizationId}, tenant=${scope.tenantId}`)
       return
     }
-    const commandBus = container.resolve('commandBus') as CommandBus
-    const result = await startProductPublish(
-      { em, commandBus, resolve: (name) => container.resolve(name) },
-      scope,
-      { id: product.id, sku: product.sku ?? null, title: product.title },
-      { kind: 'manual', ref: 'cli' },
-    )
-    console.log(
-      `${result.deduplicated ? 'Existing' : 'Started'} execution ${result.executionId} (process ${result.processDefinitionId}); the orchestrator worker runs it.`,
-    )
+    const result = await openProductTask(container, scope, { id: product.id, sku: product.sku ?? null, title: product.title }, {
+      appUrl: process.env.APP_URL ?? null,
+    })
+    console.log(result.status === 'skipped'
+      ? `Skipped (${result.reason}); run \`mercato tasks seed-demo\` and \`mercato factory ensure-process\` first.`
+      : `Task ${result.taskId} ${result.created ? 'created' : 'reused'}, ${result.status}; the workers run factory.deliver.`)
   },
 }
 
@@ -80,9 +75,8 @@ const ensureProcess: ModuleCli = {
     const scope = readScope(rest)
     if (!scope) return
     const container = await createRequestContainer()
-    const em = (container.resolve('em') as EntityManager).fork()
-    const definition = await ensureFactoryProcessDefinition(em, scope)
-    console.log(`Process definition ${definition.id} ("${definition.name}") ready for org=${scope.organizationId}`)
+    const result = await ensureFactoryDeliver(container, scope)
+    console.log(`factory.deliver ${result.processDefinitionId} (workflow ${result.workflowDefinitionId}) ready for org=${scope.organizationId}`)
   },
 }
 

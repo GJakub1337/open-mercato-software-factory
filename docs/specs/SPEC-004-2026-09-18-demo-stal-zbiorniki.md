@@ -26,12 +26,12 @@ się na żywo; uruchomienia kodujące startują przed pitchem, a na scenie pokaz
 | Scena | Forma | Zbudowane | Brakuje | Kto |
 |---|---|---|---|---|
 | 1. Hook | slajd | — | slajd | demo owner |
-| 2. Poprawa rekordu | na żywo | katalog demo z błędnym `ZDP-5000` (`demo_fixtures`) | moduł `tasks`, chat intake (SPEC-002), zmiany `record` w Caseload (SPEC-003) | tasks owner |
-| 3. Katalog → strona | na żywo, uruchomienie przed pitchem | strona z produktami i „Od ręki” w repo landing; ręczny PR z `ZWM-1500` ma preview (repo landing, PR #4) | intake z `catalog.product.created`, proces `factory.deliver`, runner (SPEC-001) | process + runner owner |
+| 2. Poprawa rekordu | na żywo | katalog demo z błędnym `ZDP-5000` (`demo_fixtures`); tablica DEMO z delegowaniem do Factory (moduł `tasks`) | chat intake (SPEC-002), zmiany `record` w Caseload (SPEC-003) | tasks owner |
+| 3. Katalog → strona | na żywo, uruchomienie przed pitchem | strona z produktami i „Od ręki” w repo landing; moduł `factory`: produkt w „Od ręki” → zadanie na tablicy DEMO delegowane do Factory → `factory.deliver` otwiera PR ze stroną, podpina go do zadania i przesuwa je do „In review” → „Zatwierdź i opublikuj” w szufladzie merguje PR i zamyka zadanie jako Done | próba na prawdziwym repo landing z kliknięciem Marka; runner agenta (SPEC-001) zamiast deterministycznego generatora strony | process + runner owner |
 | 3b. Sprzedaż → referencja | na żywo, uruchomienie przed pitchem | klient Park of Poland i zamówienie `SO-2026-0042` w seedzie; strona „Realizacje” + „Zaufali nam” na `main` repo landing z fikcyjnym browarem jako pierwszą referencją; ręczny PR #7 z wpisem Park of Poland otwarty jako fallback; fixture scrape'u | intake z `sales.order.updated`, researcher z `web_fetch`, runner (SPEC-006 Fazy 2–3) | jak wyżej |
 | 5. Co dalej | slajd | — | slajd | demo owner |
 
-Na `main` tego repo są dziś specki i `demo_fixtures`. Modułów `tasks` i `factory` jeszcze nie ma.
+Na `main` tego repo są specki, `demo_fixtures`, `task_tools` i `tasks` (tablica z delegowaniem); `factory` dochodzi razem ze sceną 3 na tablicy.
 PR #8 (kolegi) to spec wykonania i dostawy: wymaga jednego kliknięcia człowieka „Approve merge
 and deploy” przy każdym merge'u, co pasuje do decyzji „klik Marka” poniżej.
 
@@ -195,7 +195,12 @@ realizacja to wpis w rejestrze i strona TSX, więc PR fabryki dodaje pliki, nie 
 7. Scena 2 end to end na seedowanym `ZDP-5000`. *Test:* zatwierdzenie → rekord ma 5200 l
    i wymiary; szuflada pokazuje `applied`.
 8. Scena 3 end to end od dodania `ZWM-1500` w UI katalogu. *Test:* PR z preview, klik Marka,
-   strona na żywo pokazuje zbiornik, zadanie w `Done`.
+   strona na żywo pokazuje zbiornik, zadanie w `Done`. **Zrobione na jednorazowej instancji
+   (19.09):** produkt → zadanie delegowane → PR (prawdziwe repo, PR #8, zamknięty) → „In review”
+   z linkiem; klik „Zatwierdź i opublikuj” → merge i `Done` (sprawdzone na atrapie GitHuba, żeby
+   nie publikować `ZWM-1500` przed pitchem); błąd GitHuba zamyka zadanie z powodem.
+   Uwaga: stronę zatwierdza osoba przypisana do zadania, czyli właściciel projektu DEMO
+   (pierwszy użytkownik z `mercato init`).
 9. Scena 3b end to end (SPEC-006 Fazy 2–3). *Test:* status *Fulfilled* → PR z logo i kartą,
    klik Marka, strona na żywo.
 
@@ -219,3 +224,4 @@ realizacja to wpis w rejestrze i strona TSX, więc PR fabryki dodaje pliki, nie 
 | 2026-09-19 | Repo landing: PR #5 (infrastruktura realizacji) i #6 (stan demo: fikcyjny browar na `main`) zmergowane; PR #7 z Park of Poland otwarty jako fallback sceny 3b. |
 | 2026-09-19 | Dokument przepisany jako jedyne źródło prawdy o pitchu: „Stan na dziś”, decyzje zamknięte (polski, na żywo z uruchomieniami przed pitchem, merge po kliknięciu Marka zamiast waivera), scenariusz z kolejnością kart i podziałem ról, Q&A o kliknięciu i o logo Suntago; plan wdrożenia na końcu ze stanem kroków. |
 | 2026-09-19 | Scena 3, pierwszy odcinek: moduł `factory` (intake z `catalog.product.created` → proces orkiestratora → PR ze stroną produktu, wynik procesu = PR). Próba na repo strony przeszła; PR-y próbne zamknięte. |
+| 2026-09-19 | Scena 3 na tablicy: intake tworzy zadanie DEMO delegowane do Factory, `factory.deliver` otwiera PR i przesuwa zadanie do „In review”, „Zatwierdź i opublikuj” merguje PR i zamyka zadanie. |
