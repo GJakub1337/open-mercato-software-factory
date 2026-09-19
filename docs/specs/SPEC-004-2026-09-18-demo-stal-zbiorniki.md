@@ -63,8 +63,12 @@ wszystko, co dotyczy warunków sprzedaży.
 | 0:00–0:35 | **1. Hook** | Slajd: Marek, realistycznie wyglądająca strona, nieaktualna sekcja „Od ręki”, Excel z ofertami | problemu, w jednej osobie | niczego |
 | 0:35–1:50 | **2. Poprawa rekordu** | Marek na stronie produktu, asystent AI: „ZDP-5000 ma 5200 l, nie 5000, i brakuje wymiarów”. Pojawia się zadanie, delegowane. Caseload pokazuje jedną zmianę w *ZDP-5000*: tytuł, opis, wymiary przed → po. Zatwierdza, rekord się aktualizuje, a szuflada zadania pokazuje `applied`. | plan przed działaniem; bramka człowieka; compare-and-set; nic ukrytego | SPEC-002 chat intake, SPEC-003 Faza 1 |
 | 1:50–3:40 | **3. Katalog → strona** | Marek dodaje *ZWM-1500 Zbiornik mobilny na wodę pitną 1500 l* z zaznaczonym „Od ręki”. Tablica pokazuje nowe zadanie, delegowane, z `catalog.product.created`. Przeskok do gotowego uruchomienia: „single shot” sizera, PR w repo strony, link do preview z nową kartą w „Od ręki”, ścieżka recenzji *waiver: new product page*, zmergowany. Strona na żywo pokazuje zbiornik. | wyzwalacz jest w systemie ewidencji, którego fabryki widzące tylko repo nie widzą; recenzja kierowana według klasy zmiany | SPEC-001 kroki 2–3 i scenariusz danych biznesowych |
-| 3:40–4:20 | **4. Kontrast** | Zadanie „Wydłuż gwarancję w regulaminie do 5 lat” dochodzi do PR, a zadanie stoi w `in_review` z „waiting for: legal”. Element Caseload recenzenta prawnego pokazuje wyrenderowany diff tekstu. | zmiany niskiego ryzyka mergują się według polityki, tekst prawny nigdy | SPEC-001 kierowanie recenzji |
-| 4:20–5:00 | **5. Co dalej** | Jeden slajd: InboxOps (mail z zapytaniem ofertowym → zadanie), WordPress, wyniki ewaluacji i koszt na zadanie z orkiestratora | że to uogólnia się poza kod | niczego |
+| 3:40–4:30 | **3b. Sprzedaż → referencja** | Handlowiec oznacza zamówienie *Park of Poland (Suntago)* jako zrealizowane. Tablica pokazuje zadanie z `sales.order.updated`. Przeskok do gotowego uruchomienia: artefakt researchera z logo Suntago i opisem zescrapowanym z parkofpoland.com, PR z preview: logo w „Zaufali nam” i karta w „Realizacje” z danymi z zamówienia. Marek zatwierdza, strona na żywo. Jeśli jest czas: dwa zdjęcia przeciągnięte na zamówienie → drugi PR z galerią. | wyzwalacz w sprzedaży; fabryka wciąga do systemu dane z internetu, których tam nie było; zgoda klienta jako krok procesu | [SPEC-006](./SPEC-006-2026-09-19-realizacja-klienta.md) |
+| 4:30–5:00 | **5. Co dalej** | Jeden slajd: ścieżka prawna (zmiana regulaminu czeka na prawnika), InboxOps (mail z zapytaniem ofertowym → zadanie), WordPress, wyniki ewaluacji i koszt na zadanie z orkiestratora | że to uogólnia się poza kod | niczego |
+
+Scena 4 (kontrast: regulamin czeka na prawnika) wycięta 2026-09-19 na rzecz sceny 3b; kierowanie
+recenzji według klasy zmiany mówimy przy PR ze sceny 3, a ścieżkę prawną pokazujemy na slajdzie
+„co dalej”.
 
 Zasady części na żywo:
 
@@ -127,8 +131,8 @@ Każdy plan awaryjny zachowuje historię. Zmieniają się tylko sceny, których 
 | Chat intake (SPEC-002) | 2 | Marek tworzy zadanie na tablicy ręcznie i je deleguje |
 | Zmiany `record` (SPEC-003) | 2 | wyciąć scenę 2 i oddać czas scenie 3 |
 | Runner nie otwiera PR-ów | 3 | fallback runnera ze SPEC-001 (Claude Managed Agents); jeśli i on zawiedzie, nagrane uruchomienie (Q3 (b)) |
-| Kierowanie recenzji według klasy zmiany | 4 | powiedzieć to przy PR ze sceny 3; ścieżkę prawną pokazać jako jeden slajd |
-| Wszystko, co wymaga runnera | 3, 4 | proces `factory.status` ze SPEC-001: cotygodniowy status dla Marka, harmonogram → artefakt → zatwierdzenie → publikacja |
+| Firecrawl albo intake z zamówienia (SPEC-006) | 3b | plany awaryjne ze SPEC-006: zbuforowany scrape, zadanie tworzone ręcznie; w ostateczności wyciąć 3b i oddać czas scenie 3 |
+| Wszystko, co wymaga runnera | 3, 3b | proces `factory.status` ze SPEC-001: cotygodniowy status dla Marka, harmonogram → artefakt → zatwierdzenie → publikacja |
 | Sieć na miejscu | wszystkie | nagrane pełne uruchomienie, komentowane na żywo |
 
 ## Przygotowanie do Q&A (3:00)
@@ -155,8 +159,9 @@ Prawdopodobne pytania i odpowiedź w dwóch zdaniach na każde:
 
 - **LLM na żywo na scenie.** Łagodzimy przez wcześniejsze uruchomienie sceny 3 (Q3) i przez to, że
   każdy krok na żywo to jedno kliknięcie na stanie, który próba generalna już osiągnęła.
-- **Pomylenie z prawdziwą marką.** Nazwa, logo i numery telefonów są fikcyjne. Spec przywołuje
-  prawdziwą stronę tylko jako materiał badawczy.
+- **Pomylenie z prawdziwą marką.** Nazwa, logo i numery telefonów Stal-Zbiorniki są fikcyjne.
+  Spec przywołuje prawdziwą stronę tylko jako materiał badawczy. Wyjątek: klient ze sceny 3b
+  (Park of Poland) jest prawdziwy, a jego logo trafia na stronę demo; łagodzenie w SPEC-006 Q2.
 - **Seedowane meble na instancji demo.** Używamy punktu wejścia `--no-examples`.
 
 ## Plan wdrożenia
@@ -182,8 +187,8 @@ Prawdopodobne pytania i odpowiedź w dwóch zdaniach na każde:
    i wymiary; szuflada pokazuje `applied`.
 6. Scena 3 end to end od dodania `ZWM-1500` w UI katalogu. *Test:* zmergowany PR, strona na żywo
    pokazuje zbiornik, zadanie w `Done`.
-7. Ścieżka prawna ze sceny 4. *Test:* zmiana w `regulamin` zostawia zadanie czekające na rolę
-   prawną.
+7. Scena 3b end to end według planu wdrożenia SPEC-006. *Test:* zmiana statusu zamówienia →
+   zmergowany PR, strona na żywo pokazuje logo i kartę realizacji.
 
 ### Faza 4: Próby (sobota wieczór, niedziela do 11:00)
 
@@ -198,6 +203,7 @@ Prawdopodobne pytania i odpowiedź w dwóch zdaniach na każde:
 | Data | Zmiana |
 |------|--------|
 | 2026-09-18 | Szkic: persona i fabuła Stal-Zbiorniki, seed katalogu demo (`demo_fixtures`), docelowa strona, plany awaryjne, Q&A. |
+| 2026-09-19 | Scena 4 (prawnik) wycięta, na jej miejsce scena 3b: zrealizowane zamówienie Park of Poland → logo i karta realizacji na stronie (SPEC-006). Ścieżka prawna przeniesiona na slajd „co dalej”. |
 | 2026-09-19 | Q1 rozstrzygnięte (Astro, Vercel, publiczne repo `hackaton-stal-zbiorniki-landing`); strona opisana w SPEC-005. |
 | 2026-09-19 | ZWM-1500 z kategorią „Zbiorniki na wodę pitną” i parametrami w podtytule; weryfikacja strony przez check `site` i status `factory/catalog-match` (SPEC-005). |
 | 2026-09-19 | Strona na Next ze static export zamiast Astro; produkt to strona TSX (SPEC-005). |
