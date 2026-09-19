@@ -22,7 +22,7 @@ funkcjonalnych braków opisanych w SPEC-004.
 - Marek ma osobnego użytkownika przypisanego wyłącznie do roli demo. Nie łączymy jej z rolą
   administratora, ponieważ uprawnienia są sumowane.
 - Wybranym wariantem prezentacyjnym czatu jest bezpośredni panel „Chat” zadokowany po prawej
-  stronie. Marek otwiera go z górnego paska lub istniejącym skrótem i wpisuje w nim polecenie.
+  stronie. Marek otwiera go z górnego paska lub skrótem `Cmd+J` i wpisuje w nim polecenie.
 - Selektor „AI assistants” pozostaje zainstalowany, ale nie jest częścią ścieżki pitchu. Nie
   pokazujemy jury ekranu konfiguracji providera i nie dodajemy drugiej pozycji czatu do menu.
 - Wersja demo używa świeżego tenanta utworzonego z `--no-examples` oraz danych Stal-Zbiorniki.
@@ -59,7 +59,8 @@ Playground, procesy, ślady i audyt. Ukrycie pozycji menu nie zastępuje kontrol
 ### Górny pasek
 
 - Przycisk AI pozostaje widoczny dzięki `ai_assistant.view`.
-- Akcja używana przez Marka ma otwierać bezpośredni panel „Chat”. Selektor „AI assistants” może
+- Akcja używana przez Marka ma otwierać bezpośredni panel „Chat”, również skrótem `Cmd+J`.
+  Selektor „AI assistants” może
   pozostać dostępny poza prezentacją, ale nie może przerwać sceny ekranem konfiguracji.
 - Provider i jeden właściwy asystent są przygotowane przed próbą. Sekrety pozostają wyłącznie w
   zatwierdzonym lokalnym magazynie lub środowisku uruchomieniowym.

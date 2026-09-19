@@ -25,9 +25,13 @@ export function AiAssistantShellIntegration({
   const [IntegrationComponent, setIntegrationComponent] = React.useState<AiAssistantIntegrationComponent | null>(null)
 
   React.useEffect(() => {
-    if (window.localStorage.getItem(AI_ASSISTANT_VISIBILITY_KEY) !== null) return
     const visibility = { enabled: true }
-    window.localStorage.setItem(AI_ASSISTANT_VISIBILITY_KEY, JSON.stringify(visibility))
+    try {
+      if (window.localStorage.getItem(AI_ASSISTANT_VISIBILITY_KEY) !== null) return
+      window.localStorage.setItem(AI_ASSISTANT_VISIBILITY_KEY, JSON.stringify(visibility))
+    } catch {
+      // Keep the assistant available for this session when browser storage is unavailable.
+    }
     window.dispatchEvent(new CustomEvent('om:ai-assistant-visibility-change', { detail: visibility }))
   }, [])
 

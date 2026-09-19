@@ -19,6 +19,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  jest.restoreAllMocks()
 })
 
 it('enables the assistant shell when no visibility preference exists', async () => {
@@ -54,6 +55,27 @@ it('preserves an explicit disabled visibility preference', async () => {
   expect(await screen.findByText('Chat entry point')).toBeInTheDocument()
   expect(window.localStorage.getItem(VISIBILITY_KEY)).toBe(disabledPreference)
   expect(onVisibilityChange).not.toHaveBeenCalled()
+
+  window.removeEventListener(VISIBILITY_EVENT, onVisibilityChange)
+})
+
+it('keeps the assistant available when the visibility preference cannot be persisted', async () => {
+  jest.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+    throw new DOMException('Storage is unavailable', 'SecurityError')
+  })
+  const onVisibilityChange = jest.fn<(event: Event) => void>()
+  window.addEventListener(VISIBILITY_EVENT, onVisibilityChange)
+
+  render(
+    <AiAssistantShellIntegration tenantId="tenant" organizationId="organization">
+      <span>Chat entry point</span>
+    </AiAssistantShellIntegration>,
+  )
+
+  expect(await screen.findByText('Chat entry point')).toBeInTheDocument()
+  expect(window.localStorage.getItem(VISIBILITY_KEY)).toBeNull()
+  expect(onVisibilityChange).toHaveBeenCalledTimes(1)
+  expect((onVisibilityChange.mock.calls[0]?.[0] as CustomEvent).detail).toEqual({ enabled: true })
 
   window.removeEventListener(VISIBILITY_EVENT, onVisibilityChange)
 })
