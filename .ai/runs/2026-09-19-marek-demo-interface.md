@@ -46,6 +46,8 @@ implementing agent delegation.
 
 ## Progress
 
+PR: #38
+
 > Convention: `- [ ]` pending, `- [x]` done. Append ` - <commit sha>` when a step lands. Do not rename step titles.
 
 ### Phase 1: Package the existing UI slice
@@ -56,5 +58,8 @@ implementing agent delegation.
 
 ### Phase 2: Verify and publish for review
 
-- [ ] 2.1 Run focused and full validation
-- [ ] 2.2 Complete the final diff review and publish the PR
+- [x] 2.1 Run focused and full validation - 3abd6f5
+- [x] 2.2 Complete the final diff review and publish the PR - 3abd6f5
+
+Review fix: browser-storage failures no longer hide or crash the assistant entry point, and the
+demo documentation consistently names `Cmd+J` - 3abd6f5.
