@@ -1,12 +1,18 @@
 import type { AwilixContainer } from 'awilix'
 import type { EntityManager } from '@mikro-orm/postgresql'
-import type { CommandBus, CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
+import type { CommandBus } from '@open-mercato/shared/lib/commands'
 import type { QueryEngine } from '@open-mercato/shared/lib/query/types'
 import { findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import { User } from '@open-mercato/core/modules/auth/data/entities'
 import { FACTORY_COLUMNS } from './factoryColumns'
+import { systemContext, type TaskDelegationScope } from './systemContext'
+import { FACTORY_AGENT_DISPLAY_NAME, FACTORY_AGENT_ID } from './agentIdentity'
 
-export type TaskDelegationDemoScope = { tenantId: string; organizationId: string }
+/** @deprecated Prefer `TaskDelegationScope`; kept as an alias so existing importers keep working. */
+export type TaskDelegationDemoScope = TaskDelegationScope
+
+// Re-exported for the importers that already reach for these here.
+export { FACTORY_AGENT_DISPLAY_NAME, FACTORY_AGENT_ID }
 
 export type TaskDelegationDemoResult = {
   customerId: string
@@ -18,22 +24,9 @@ export type TaskDelegationDemoResult = {
 
 export const DEMO_CUSTOMER_NAME = 'Internal'
 export const DEMO_PROJECT_CODE = 'DEMO'
-export const FACTORY_AGENT_ID = 'factory'
-
 
 type AgentPrincipalService = {
   provision(scope: TaskDelegationDemoScope, input: { agentDefinitionId: string; displayName?: string; roleFeatures?: string[] }): Promise<{ userId: string }>
-}
-
-function systemContext(container: AwilixContainer, scope: TaskDelegationDemoScope): CommandRuntimeContext {
-  return {
-    container,
-    auth: { sub: null, tenantId: scope.tenantId, orgId: scope.organizationId } as unknown as CommandRuntimeContext['auth'],
-    systemActor: true,
-    organizationScope: null,
-    selectedOrganizationId: scope.organizationId,
-    organizationIds: [scope.organizationId],
-  }
 }
 
 async function firstId(qe: QueryEngine, entity: string, filters: Record<string, unknown>, scope: TaskDelegationDemoScope): Promise<string | null> {
@@ -124,7 +117,7 @@ export async function seedTaskDelegationDemo(
   if (typeof hasRegistration === 'function' && hasRegistration.call(container, 'agentPrincipalService')) {
     const principal = await container.resolve<AgentPrincipalService>('agentPrincipalService').provision(scope, {
       agentDefinitionId: FACTORY_AGENT_ID,
-      displayName: 'Factory',
+      displayName: FACTORY_AGENT_DISPLAY_NAME,
       roleFeatures: ['task_delegation.view', 'task_delegation.process'],
     })
     agentUserId = principal.userId
