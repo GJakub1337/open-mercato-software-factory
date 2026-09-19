@@ -81,7 +81,7 @@ if (command === 'prepare') {
       const result = await connection.query('select id, tenant_id from organizations where deleted_at is null')
       if (result.rows.length !== 1) throw new Error('Expected exactly one organization in isolated demo; use explicit scoped CLI for other instances.')
       const row = result.rows[0]
-      yarn(env, 'mercato', 'demo_fixtures', 'personalize-stal-zbiorniki', '--tenant', row.tenant_id, '--org', row.id)
+      yarn(env, 'mercato', 'demo_fixtures', 'seed-stal-zbiorniki', '--tenant', row.tenant_id, '--org', row.id)
     } finally { await connection.end() }
   }
 } else {

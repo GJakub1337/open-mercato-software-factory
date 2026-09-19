@@ -25,7 +25,7 @@ try {
   const logo = readFileSync(new URL('../public/brand/stal-zbiorniki-icon.png', import.meta.url))
   assert.deepEqual(logo.subarray(0, 8), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), 'Sidebar logo must be a PNG')
   const { id: org, tenant_id: tenant } = scope[0]
-  const tables = ['catalog_products', 'catalog_product_categories', 'catalog_product_variant_prices', 'customer_entities', 'customer_companies', 'staff_teams', 'staff_team_members', 'staff_time_projects', 'staff_time_project_members', 'staff_time_task_statuses', 'staff_time_tasks', 'sales_orders', 'sales_order_lines']
+  const tables = ['catalog_products', 'catalog_product_categories', 'catalog_product_variant_prices', 'customer_entities', 'customer_companies', 'customer_addresses', 'customer_person_company_links', 'sales_document_addresses', 'staff_teams', 'staff_team_members', 'staff_time_projects', 'staff_time_project_members', 'staff_time_task_statuses', 'staff_time_tasks', 'sales_orders', 'sales_order_lines']
   async function snapshot() {
     const result = {}
     for (const table of tables) result[table] = (await client.query(`select * from ${table} where tenant_id=$1 and organization_id=$2 order by id`, [tenant, org])).rows
@@ -33,13 +33,14 @@ try {
   }
   const before = await snapshot()
   assert.equal(before.catalog_products.length, 7)
-  assert.equal(before.customer_entities.length, 4)
+  assert.equal(before.customer_entities.length, 7)
   assert.equal(before.staff_team_members.length, 6)
   assert.equal(before.staff_time_projects.length, 3)
   assert.equal(before.staff_time_tasks.length, 12)
   assert.equal(before.staff_time_task_statuses.length, 12)
-  assert.equal(before.sales_orders.length, 1)
-  assert.equal(Number(before.sales_orders[0].grand_total_net_amount), 126400)
+  assert.equal(before.sales_orders.length, 2)
+  assert.ok(before.sales_orders.some((order) => order.order_number === 'SO-2026-0042'), 'Existing demo order must remain available')
+  assert.equal(Number(before.sales_orders.find((order) => order.order_number === 'SZ-DEMO-0042').grand_total_net_amount), 126400)
   assert.equal(before.catalog_products.some((product) => product.sku === 'ZWM-1500'), false)
   const tank = before.catalog_products.find((product) => product.sku === 'ZDP-5000')
   assert.equal(tank.metadata.capacityLiters, 5000)

@@ -565,14 +565,21 @@ export async function seedSuntagoOrder(
   calculationService: SalesCalculationService,
   scope: DemoSeedScope,
   customer: ParkOfPolandCustomer,
+  productIdsByHandle?: ReadonlyMap<string, string>,
 ): Promise<boolean> {
   const existing = await em.count(SalesOrder, { ...scope, orderNumber: SUNTAGO_ORDER.orderNumber })
   if (existing > 0) return false
 
   const handles = SUNTAGO_ORDER.lines.map((line) => line.handle)
-  const products = await em.find(CatalogProduct, { ...scope, handle: { $in: handles }, deletedAt: null })
-  const productsByHandle = new Map(products.map((product) => [product.handle, product]))
-  const missing = handles.filter((handle) => !productsByHandle.has(handle))
+  const products = await em.find(CatalogProduct, {
+    ...scope,
+    ...(productIdsByHandle ? { id: { $in: [...productIdsByHandle.values()] } } : { handle: { $in: handles } }),
+    deletedAt: null,
+  })
+  const productsByHandle = new Map(handles.map((handle) => [handle, products.find((product) =>
+    productIdsByHandle ? product.id === productIdsByHandle.get(handle) : product.handle === handle,
+  )]))
+  const missing = handles.filter((handle) => !productsByHandle.get(handle))
   if (missing.length) {
     throw new Error(`Cannot seed order ${SUNTAGO_ORDER.orderNumber}: missing products ${missing.join(', ')}.`)
   }

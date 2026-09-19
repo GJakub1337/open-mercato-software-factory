@@ -83,4 +83,4 @@ non-production use, production needs an enterprise licence. See
 
 For a repeatable isolated local company demo (fictional customers, catalog, staff,
 projects and tasks), follow [the Polish setup guide](docs/stal-zbiorniki-demo.md).
-The opt-in `demo_fixtures personalize-stal-zbiorniki` command preserves manual edits.
+The opt-in `demo_fixtures seed-stal-zbiorniki` command preserves manual edits.

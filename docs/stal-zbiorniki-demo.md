@@ -23,7 +23,7 @@ STEEL_DEMO_PORT=5013 STEEL_DEMO_POSTGRES_PORT=55443 node scripts/steel-demo.mjs 
 
 Pierwsze `prepare` wymaga checkoutu bez `.env`. Ponowne `prepare` w przygotowanym checkoutcie wznawia uruchamianie tego samego kontenera bez zmiany haseł; użyj go po włączeniu Dockera lub zwolnieniu portu. Jeśli `yarn generate` utworzył `.env` z przykładu, zachowaj go pod inną nazwą przed `prepare`. Nie kopiuj konfiguracji działającej instancji. Kontener może potrzebować kilku sekund na gotowość przed `init`; sprawdź `docker logs <nazwa-z-prepare>`. Po przerwanym init nie uruchamiaj resetu, sprawdź log i dokończ brakujący krok zwykłym CLI.
 
-`init` stosuje istniejące migracje wyłącznie na nowej pustej bazie, następnie uruchamia `mercato init --no-examples --org="Stal-Zbiorniki Sp. z o.o."`. Nie seeduje mebli ani starszego klienta Park of Poland. Nie dodaje kluczy AI, GitHub App ani połączenia repozytorium. `start` uruchamia tylko lokalny serwer WWW, bez workerów/providerów.
+`init` stosuje istniejące migracje wyłącznie na nowej pustej bazie, następnie uruchamia `mercato init --no-examples --org="Stal-Zbiorniki Sp. z o.o."`. Nie seeduje mebli. Następne polecenie `seed` zachowuje także dotychczasowy scenariusz Park of Poland. Nie dodaje kluczy AI, GitHub App ani połączenia repozytorium. `start` uruchamia tylko lokalny serwer WWW, bez workerów/providerów.
 
 Otwórz `http://127.0.0.1:5003/backend`. Login właściciela: `marek@stal-zbiorniki.example`; losowe hasło jest lokalnie w `.env` jako `OM_INIT_SUPERADMIN_PASSWORD`. Nie publikuj `.env`, logów inicjalizacji ani katalogu `.steel-demo` (jest ignorowany przez Git). Interfejs tej instancji jest po polsku przez `OM_FORCE_LOCALE=pl`. Nazwa organizacji pochodzi z init; logo organizacji to nowy znak zbiornika ze spoiną i napis STAL-ZBIORNIKI, zaprojektowane na życzenie użytkownika (public/brand/stal-zbiorniki-icon.png; wariant pełny: stal-zbiorniki-pro.png). Shell i design system pozostają Open Mercato. Logo jest ustawiane tylko dla organizacji Stal-Zbiorniki z pustym logo i korzysta z APP_URL tej instancji; po zmianie hosta popraw adres w ustawieniach organizacji.
 
@@ -32,16 +32,18 @@ Otwórz `http://127.0.0.1:5003/backend`. Login właściciela: `marek@stal-zbiorn
 Po instalacji zależności i `corepack yarn generate`:
 
 ```bash
-corepack yarn mercato demo_fixtures personalize-stal-zbiorniki \
+corepack yarn mercato demo_fixtures seed-stal-zbiorniki \
   --tenant UUID_TENANTA --org UUID_ORGANIZACJI
 ```
 
-Wymagane aktywne moduły z repo i ich domyślne dane, istniejąca organizacja oraz człowiek z kontem w tej organizacji. UUID odczytaj ze swojej instancji; CLI sprawdza relację organizacji i tenanta. Seeder nie zmienia nazwy istniejącej organizacji, kont, haseł, ACL ani ustawień ręcznych. Nazwę można zmienić przez standardowe ustawienia organizacji. Nie uruchamiaj starego `seed-stal-zbiorniki`, jeżeli chcesz wyłącznie fikcyjnych klientów: stare polecenie zachowuje wcześniejszy scenariusz SPEC-004.
+Wymagane aktywne moduły z repo i ich domyślne dane, istniejąca organizacja oraz człowiek z kontem w tej organizacji. UUID odczytaj ze swojej instancji; CLI sprawdza relację organizacji i tenanta. Seeder nie zmienia nazwy istniejącej organizacji, kont, haseł, ACL ani ustawień ręcznych. Nazwę można zmienić przez standardowe ustawienia organizacji. Istniejące polecenie `seed-stal-zbiorniki` uruchamia pełny seed. Zachowuje wcześniejszy scenariusz SPEC-004/006 i dodaje brakujące dane oraz branding. Nie ma drugiego polecenia personalizacji.
 
 ## Co obejmuje seed
 
+Dotychczasowy klient Park of Poland, jego kontakt/adresy i zamówienie `SO-2026-0042` oraz klient Internal pozostają. Seed ponownie używa istniejących funkcji tego scenariusza i nie nadpisuje jego rekordów. Dziennik pomija zakończone kroki również po ręcznych zmianach. Świeża instancja ma łącznie 6 firm, 1 osobę kontaktową i 2 zamówienia.
+
 - 7 produktów i 6 kategorii, ceny netto PLN, parametry i opisy z istniejącego katalogu demo zgodne ze źródłem landingowym.
-- 4 firmy: Stal-Zbiorniki (wewnętrzna), Browar Rzemieślniczy Ostrów, Aqua Dolina i Trans-Sud. Tylko fikcyjne dane kontaktowe `.example`, bez numerów telefonu i NIP.
+- 4 dodatkowe firmy: Stal-Zbiorniki (wewnętrzna), Browar Rzemieślniczy Ostrów, Aqua Dolina i Trans-Sud. Tylko fikcyjne dane kontaktowe `.example`, bez numerów telefonu i NIP.
 - 3 zespoły i 6 osób: sprzedaż, technologia/jakość, produkcja/logistyka. Jedynie Marek jest połączony z istniejącym kontem właściciela; pozostałe osoby nie otrzymują kont ani uprawnień.
 - Projekty DEMO, BROWAR, AQUA, członkostwa i 12 zadań. Każdy nowy projekt ma domyślne cztery kolumny staff. Wspólny picker Assigned to pozostaje bez zmian.
 - Zamówienie `SZ-DEMO-0042`: 1 x ZPPOZ-20 i 2 x ZCH-3000, 126400 PLN netto. Status początkowy pochodzi ze standardowej komendy sprzedaży, nie udajemy zrealizowanego zamówienia.

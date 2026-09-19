@@ -3,13 +3,15 @@ import type { CommandBus } from '@open-mercato/shared/lib/commands'
 import type { QueryEngine } from '@open-mercato/shared/lib/query/types'
 import type { EntityManager } from '@mikro-orm/postgresql'
 import type { ModuleConfigService } from '@open-mercato/core/modules/configs/lib/module-config-service'
+import type { SalesCalculationService } from '@open-mercato/core/modules/sales/services/salesCalculationService'
 import { Organization } from '@open-mercato/core/modules/directory/data/entities'
 import { User } from '@open-mercato/core/modules/auth/data/entities'
 import { findWithDecryption, findOneWithDecryption } from '@open-mercato/shared/lib/encryption/find'
+import { seedTaskDelegationDemo } from '../../task_delegation/lib/demoSetup'
 import { systemContext } from '../../task_delegation/lib/systemContext'
 import { FACTORY_AGENT_ID, FACTORY_AGENT_DISPLAY_NAME } from '../../task_delegation/lib/agentIdentity'
 import { personalizationScopeSchema } from '../data/validators'
-import { STAL_ZBIORNIKI_CATEGORIES, STAL_ZBIORNIKI_PRODUCTS, type DemoSeedScope } from './stalZbiorniki'
+import { seedParkOfPoland, seedSuntagoOrder, STAL_ZBIORNIKI_CATEGORIES, STAL_ZBIORNIKI_PRODUCTS, type DemoSeedScope } from './stalZbiorniki'
 import { ensureSeedRecord, type SeedRecord } from './seedJournal'
 import { DEMO_COMPANY_NAME, DEMO_CUSTOMERS, DEMO_NOTICE, DEMO_PEOPLE, DEMO_PROJECTS, DEMO_TASKS, DEMO_TEAMS } from './companyStory'
 
@@ -173,6 +175,17 @@ async function seedCompany(container: AppContainer, scope: DemoSeedScope, ownerU
           quantityUnit: 'pc', currencyCode: 'PLN', unitPriceNet: product.netPricePln, taxRate: 23 }
       }),
     }))
+  await ensure('legacy.company', () => find('sales:sales_order', { order_number: 'SO-2026-0042' }), async () => {
+    const em = container.resolve<EntityManager>('em')
+    const customer = await seedParkOfPoland(em, scope)
+    await seedSuntagoOrder(em, container.resolve<SalesCalculationService>('salesCalculationService'), scope, customer,
+      new Map([...products].map(([handle, record]) => [handle, record.id])))
+    return scope.organizationId
+  })
+  await ensure('legacy.board', async () => null, async () => {
+    const board = await seedTaskDelegationDemo(container, scope)
+    return board.projectId
+  })
   let agentUserId: string | null = null
   if (container.hasRegistration('agentPrincipalService')) {
     const record = await ensure('agent.factory', async () => null, async () => {

@@ -4,7 +4,7 @@ Data: 2026-09-19. Aplikacja: origin/main 67a838f, branch codex/steel-demo-person
 
 | Kryterium | Wynik i dowód |
 |---|---|
-| AC-1: dane i ponowienie | PASS: scripts/verify-steel-demo.mjs, identyczne rekordy biznesowe przed i po ponowieniu. 7 produktów, 6 kategorii, 7 cen, 4 firmy, 3 zespoły, 6 osób, 3 projekty, 12 zadań, 1 zamówienie na 126400 PLN netto. |
+| AC-1: dane i ponowienie | PASS: scripts/verify-steel-demo.mjs, identyczne rekordy biznesowe przed i po ponowieniu. 7 produktów, 6 kategorii, 7 cen, 6 firm i 1 osoba kontaktowa, 3 zespoły, 6 osób, 3 projekty, 12 zadań, 2 zamówienia: zachowane SO-2026-0042 i dodatkowe SZ-DEMO-0042 na 126400 PLN netto. |
 | AC-2: ręczne zmiany | PASS: zmiana tytułu, opisu i handle ZWP-5000 przez API UI; ponowienie zachowało wszystkie zmiany. Przywrócenie pierwotnych wartości przez API zakończone HTTP 200. Snapshot obejmował również ceny i statusy, ale nie zmieniano ich osobno. |
 | AC-3: zakres i awarie | PASS: testy jednostkowe kolizji, usunięcia, pending i rozdzielenia zakresów; rzeczywista blokada PostgreSQL odrzuciła konkurencyjny seed. CLI odrzuciło niezgodny tenant przed zapisem. Brak pending i uruchomionych procesów. |
 | AC-4: UI | PASS: katalog, firmy, sześć osób, zadania projektu DEMO i picker z Software Engineer. Logo widoczne w podglądzie brandingu organizacji. Po zapisie przez UI branding odświeżył również boczne logo. W aplikacji używany jest osobny kwadratowy sygnet. |
@@ -12,7 +12,7 @@ Data: 2026-09-19. Aplikacja: origin/main 67a838f, branch codex/steel-demo-person
 
 ## Kontrole kodu
 
-- corepack yarn test --watchman=false --runInBand: 38 suites, 206 tests PASS na końcowym kodzie.
+- corepack yarn test --watchman=false --runInBand: 40 suites, 209 tests PASS na końcowym kodzie.
 - corepack yarn typecheck: PASS po poprawce zachowania hierarchii organizacji.
 - corepack yarn lint: 0 błędów, 10 ostrzeżeń.
 - corepack yarn ds:check: 306 plików PASS.
@@ -27,3 +27,7 @@ Data: 2026-09-19. Aplikacja: origin/main 67a838f, branch codex/steel-demo-person
 [Logo i nazwa w Open Mercato](branding.png).
 
 Obrazy sprawdzono wizualnie. Tablica ma przewijanie poziome przy szerokości 1280 px. Nie wykonano pełnego QA mobilnego. Nie testowano wywołań LLM, repozytorium, publikacji ani delegacji zadania: seed nie uruchamia agentów.
+
+Istniejące CLI seed-stal-zbiorniki jest jedynym wejściem. Dotychczasowe funkcje scenariusza Park of Poland i tablicy są zachowane; ich zakończone kroki obejmuje dziennik. Snapshot ponowienia obejmuje również stare zamówienie, jego pozycje, adresy i powiązania kontaktów.
+
+Regresja starszego zamówienia: produkty o ręcznie zmienionych handle są rozpoznawane po przejętych ID. Testy potwierdzają referencje pozycji zamówienia i brak tworzenia produktów w tej fazie. Katalog nie jest seedowany drugi raz.
