@@ -310,6 +310,11 @@ closes or 72 h pass. This spec defines how that stack is reached:
 - **Which service.** The target repo marks its web service in the compose file with the label
   `factory.preview: "<port>"`. A repo without the label gets no preview, and the run records
   `previewUrl: null` rather than failing.
+- **Repo-hosted previews.** A target repo whose own host builds a preview per PR (e.g. Vercel)
+  needs no label: the runner takes `environment_url` from the GitHub deployment status for the PR
+  head, waits up to 5 minutes, and otherwise records `previewUrl: null`. Public repos link to it
+  directly, without the signed redirect below. The demo site uses this
+  ([SPEC-005](./SPEC-005-2026-09-19-stal-zbiorniki-www.md)).
 - **Routing.** A reverse proxy (Caddy) on the runner VM serves a wildcard host
   `*.preview.<factory domain>`. When the stack is healthy, the shim adds the route
   `<runId>.preview.<domain> → run-<id>_web:<port>` through Caddy's admin API, bound to localhost.
@@ -559,3 +564,4 @@ test`; `yarn test:integration:ephemeral` after Phase 1 step 5 and at the end of 
 | 2026-09-18 | Draft: change set with `code`, `record`, `message` and `artifact` kinds; one effector function with compare-and-set; person-sent messages; runner progress events and manifest; previews behind a signed redirect. |
 | 2026-09-18 | Fresh-context review applied: own effector loop instead of `executeProposal`; record grants in the seed; revert as a compared reverse change instead of platform undo (moved to Phase 2); edited-proposal, replay, stale-delegation and normalisation rules; send limited to conversation participants with `sendViaEmail`; run-scoped events; preview token stripped on entry. |
 | 2026-09-18 | Examples moved from the Oak table to the demo company's ZDP-5000 tank (SPEC-004). |
+| 2026-09-19 | Repo-hosted previews (GitHub deployment status) as an alternative to the compose label (SPEC-005). |
