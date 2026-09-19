@@ -1,7 +1,7 @@
 # Agent execution and verified previews
 
 **Date**: 2026-09-19
-**Status**: Draft
+**Status**: Draft — self-instance scope superseded by D-043; see [code repositories](2026-09-19-code-repositories.md)
 **Scope**: Specification only. Execution capability; delivery is a separate consumer.
 **Companion**: [Instance delivery and recovery](2026-09-19-instance-delivery-and-recovery.md)
 **Decisions and sources**: [Package map](2026-09-19-instance-development-infrastructure.md), [accepted decisions](2026-09-19-instance-development-decisions.md)
@@ -442,3 +442,4 @@ No unresolved product question from the interview (D-001 through D-042). Named t
 | 2026-09-19 | Technical source verification: async acknowledgment, volatile status, checkpoint limits and strict bridge input validation. |
 | 2026-09-19 | Initial execution specification following accepted two-document split; all behavior is proposed. |
 | 2026-09-19 | D-038..042: registered external website, proposed catalog data, v2 static artifact and private Vercel gateway. |
+| 2026-09-19 | D-043..047: self-instance target superseded (agent never edits OM); targets come from the OM repository registry and project links ([code repositories](2026-09-19-code-repositories.md)); `/api/tasks/targets` replaced by `/api/repositories/for-project`; enrollment replaced by OM features; agent renamed Developer. |
