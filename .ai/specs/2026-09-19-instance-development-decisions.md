@@ -1,7 +1,7 @@
 # Instance development: accepted decisions
 
 Date: 2026-09-19
-Status: accepted product decisions; technical contracts pending
+Status: accepted product decisions; technical contracts pending; target scope expanded by D-038
 
 These decisions were recorded during the specification interview. They describe the requested behavior, not existing implementation or permission to implement, deploy, or spend.
 
@@ -152,3 +152,23 @@ A human approves decomposition of an oversized task. Run the first independently
 ## D-037
 
 Use two linked specifications: execution through a verified PR and preview; and approval through merge, deployment, and recovery. Preserve the full scope across both.
+
+## D-038
+
+Support both the hosting Open Mercato repository and administrator-registered external website repositories, initially jtomaszewski/hackaton-stal-zbiorniki-landing. For every website change, the agent prepares a PR, checks and preview; a human final approval inside Open Mercato is required before automatic merge and publication. No low-risk automatic publication waiver. This expands the original own-instance-only target boundary in D-003.
+
+## D-039
+
+One task may propose coordinated catalog and website price changes. Show both before/after values and the proposed website preview before one final approval. Prices remain unchanged in the live catalog until delivery applies the approved change.
+
+## D-040
+
+For a coordinated price change, publish and verify the website first, then compare-and-set the approved catalog update. If the catalog write fails or conflicts with a concurrent edit, restore the previous website deployment and require intervention; never overwrite the later catalog edit. A short interval with different prices is accepted.
+
+## D-041
+
+A terms/legal-content change requires an additional legal-approval feature. One final approver may satisfy all applicable permissions; no mandatory second human. A mixed task requires the union of permissions for every included change.
+
+## D-042
+
+External website previews are available only to authenticated Open Mercato users with access to the task. Direct Vercel deployment URLs must not bypass this gate. There is no public-demo exception.

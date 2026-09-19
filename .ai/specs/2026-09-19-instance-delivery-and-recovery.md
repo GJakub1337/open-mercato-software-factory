@@ -8,7 +8,7 @@
 
 ## TLDR
 
-An authorized human reviews a verified candidate inside Open Mercato and gives one final approval for merge and deployment. An executor outside the application serializes changes to that instance, verifies the Git result, safely drains the application, and deploys the exact image already tested in preview. Failure restores the previous compatible application image, prepares an unmerged revert PR, and blocks further deployments until reconciliation.
+An authorized human reviews a verified candidate inside Open Mercato and gives one final approval for merge and deployment. An executor outside the application serializes changes to that instance, verifies the Git result, safely drains the application, and deploys the exact image already tested in preview. For a registered static website, it promotes the exact tested staged deployment instead; a coordinated price task then applies its approved catalog change. Failure restores the previous compatible application image, prepares an unmerged revert PR, and blocks further deployments until reconciliation.
 
 ## Problem Statement
 
@@ -35,13 +35,13 @@ GitHub's merge API compares PR head using `sha`, not an expected base. Native Gi
 
 ## Non-goals
 
-Coding execution, model-driven merge approval, automatic destructive migrations, self-updating factory controls, automatic merge of recovery PRs, multi-host HA, Kubernetes, provider purchase, framework upgrades, remote access during the local phase, or bypassing GitHub protections. Source merge is not deployment success. No second mandatory human reviewer beyond configured permissions; a repo demanding one remains blocked until a human resolves its policy.
+Coding execution, model-driven merge approval, automatic destructive migrations, self-updating factory controls, automatic merge of recovery PRs, multi-host HA, Kubernetes, provider purchase, framework upgrades, remote access during the local phase, or bypassing GitHub protections. Source merge is not deployment success. Legal changes additionally require `tasks.legal.approve`; one human may hold the union of required permissions. No second mandatory human reviewer beyond configured permissions; a repo demanding one remains blocked until a human resolves its policy.
 
 ## Proposed Solution
 
 Add delivery records and commands to `tasks`, reusing the existing code change/task identity. The external supervisor package owns one delivery executor with a durable operation journal, instance lock/fence, artifact store, protected policy, GitHub delivery adapter and deployment driver. It runs independently of the app and uses separate credentials from coding execution. Split these privileges into service processes or capability-limited adapters, not new business modules.
 
-Application approval commands submit a structured, scoped request. They cannot submit arbitrary images, repository URLs, SQL, shell commands or traffic routes. The executor resolves a previously registered candidate and rechecks its provenance, installation policy, enrollment and fresh approval before any privileged side effect. Protected policies and service binaries are updated only through an administrator path outside this self-delivery workflow.
+Application approval commands submit a structured, scoped request. They cannot submit arbitrary artifacts, repository URLs, SQL, shell commands or traffic routes. The executor resolves a previously registered candidate and rechecks its provenance, installation policy, enrollment and fresh approval before any privileged side effect. Protected policies and service binaries are updated only through an administrator path outside this self-delivery workflow.
 
 ### Design Decisions and Alternatives
 
@@ -73,12 +73,14 @@ Default approval validity: 24 hours, administrator-configurable downward or upwa
 | Actor | Required capability and scope |
 |---|---|
 | Candidate viewer | Task ACL + `tasks.view`; `tasks.code.view` for source evidence. |
-| Final approver | `tasks.deployments.approve`, task access, human identity and administrator-controlled instance deployment enrollment. Owner/author relationship is allowed, not sufficient. |
+| Final approver | `tasks.deployments.approve`, task access, human identity and administrator-controlled deployment enrollment for the selected target. Owner/author relationship is allowed, not sufficient. |
 | Request changes | `tasks.runs.control` and task access; invalidates approval before creating a repair attempt. |
+| Legal approver | `tasks.legal.approve` in addition to normal deployment approval; evaluated for semantic legal changes and mixed tasks. |
+| Commercial approver | `tasks.catalog_prices.approve` plus installed `catalog.pricing.manage` and normal target deployment approval for coordinated price updates. |
 | Recovery administrator | `tasks.deployments.recover` plus external instance administrator enrollment; can acknowledge repaired divergence, not falsify verification. |
 | Delivery executor | External machine identity bound to installation, immutable policy and single operation/fence. It alone receives merge/deploy privileges. |
 
-One source deployment affects all tenants hosted by the instance. Tenant-admin roles cannot independently grant installation-wide deployment power. Resolve task tenant/org from stored candidate scope; enrollment is a separate explicit installation authority. API callers cannot override instance/repository/tenant IDs. Application service accounts and models cannot sign human approvals.
+A self-instance source deployment affects all tenants hosted by the instance; an external-site deployment affects the registered site and only explicitly approved scoped catalog records. Tenant-admin roles cannot independently grant installation-wide deployment power. Resolve task tenant/org from stored candidate scope; enrollment is a separate explicit installation authority. API callers cannot override instance/repository/tenant IDs. Application service accounts and models cannot sign human approvals.
 
 Trust limit: the reviewed hosting app and its identity service enforce the human session boundary. These documents do not claim resilience against a fully compromised identity authority. The external executor enforces candidate/operation/host-policy restrictions independently, but proving a physical human click against a malicious hosting app would require an independent authentication/approval factor and is outside the chosen initial trust model. Do not describe a plain app callback as cryptographic proof of user intent.
 
@@ -115,9 +117,9 @@ The executor, its journal, preview/auth gateways, image store and recovery mecha
 
 Local app/preview/control publishing remains loopback-only. VPS delivery is the same algorithm with administrator-provisioned HTTPS/firewall and backup storage. No wildcard tunnel is part of local delivery. A blue/green app slot is useful for preactivation startup checks, but this design permits a maintenance window and does not promise zero downtime.
 
-### Candidate and approval binding
+### Candidate and approval binding (common and self-instance)
 
-Consume exactly `candidateManifestV1` from the execution spec. Reject unknown schema major, missing evidence, platform mismatch, mutable tag, expired snapshot, unsupported build recipe or dependency/profile drift. Record manifest hash, `B` (base SHA), `H` (PR head), `T` (tree of H), image digest, required-check observations, independent review digest, migrations, policy epoch, previous release ID and approver identity. Required repository controls must be satisfied, not substituted with the agent reviewer. If a repo requires approvals the configured human/app cannot supply, show the unmet rule and remain blocked; never auto-relax it.
+Consume `candidateManifestV1` for the legacy self-instance flow, or the execution spec's discriminated target-aware v2. The OCI-specific checks below apply to self-instance artifacts; external static artifacts use the provider contract below. Reject unknown schema major, missing evidence, platform mismatch, mutable tag, expired snapshot, unsupported build recipe or dependency/profile drift. Record manifest hash, `B` (base SHA), `H` (PR head), `T` (tree of H), image digest, required-check observations, independent review digest, migrations, policy epoch, previous release ID and approver identity. Required repository controls must be satisfied, not substituted with the agent reviewer. If a repo requires approvals the configured human/app cannot supply, show the unmet rule and remain blocked; never auto-relax it.
 
 Approval API atomically inserts the approval plus delivery outbox after optimistic locking the candidate/change row. Duplicate same request/hash returns its original delivery; changed payload under the same key returns 409. After the executor accepts the request, the approval is reserved by exactly that deployment. It is consumed at the merge boundary; ambiguous merge response requires reconciliation, not a second blind request. Cancellation before merge invalidates approval; cancellation after merge is an incident/recovery request and cannot pretend the merge did not happen.
 
@@ -169,6 +171,41 @@ If verification fails, stop candidate consumers, switch to and verify the previo
 
 Block all later deliveries until an authorized recovery administrator resolves Git/runtime/schema identity through a reviewed revert merge and records evidence. A forward repair with a new candidate is a separate administrator-operated recovery procedure outside the automatic delivery queue: the administrator records a fresh candidate-bound recovery approval, acquires the same installation lock with an incident-scoped operation ID, revalidates the candidate/backup/schema, uses the protected installation driver to activate its exact image, performs the same identity/functional checks, and supplies those immutable receipts to the resolution command. The ordinary approval/queue path remains blocked throughout; there is no implicit bypass flag. Clearing a boolean is insufficient. For revert recovery, the resulting Git tree must match the observed restored image source tree (compatible retained schema additions are recorded separately); divergent unrelated commits require a reviewed reconciliation rather than falsely declaring equivalence. The resolution command checks current Git, running image, migration compatibility, open recovery operation and retained backup state. Do not create recursive automated deployment from the recovery PR itself. All rollback and reconciliation steps run independently of inference-budget exhaustion.
 
+### External static-site delivery
+
+D-038..042 add the registered Stal-Zbiorniki repository without replacing self-instance delivery. Keep a single installation delivery lock initially, so self-deployment cannot drain OM in the middle of a catalog apply and two website publishes cannot race. Record target ID/config epoch on approval, every provider operation, receipt, release and recovery. Website delivery does not restart/drain OM app workers, run OM migrations or claim an OCI image deployment; it runs the static-site adapter and, when present, the catalog apply command. Shared budget/attempt/review policies remain unchanged. Unknown targets/artifact kinds are rejected.
+
+One final human approval is mandatory for content, code, prices and legal changes. There is no SPEC-005 low-risk publication waiver in this process version. Effective permission set is the union of normal task/target deployment features, `tasks.legal.approve` for any legal change, and `tasks.catalog_prices.approve` plus the installed pricing feature for coordinated prices. Source path classification is a floor, never proof that commercial/legal content is absent. Re-evaluate final diff, proposals and permissions when consuming approval. No eligible human means a visible waiting-for-authorized-approver state, not a fallback approver or automatic merge.
+
+For Vercel, ordinary preview-to-production promotion can rebuild with different environment values. Instead create a protected staged **production** deployment before final approval, upload the already-built static artifact without running code in the privileged uploader, test that exact deployment through the OM gateway, and bind its immutable ID/project/account/static manifest to approval. Official CLI describes `--prebuilt --prod --skip-domain` and subsequent promotion of that staged deployment without rebuilding. These commands describe the future adapter, not commands executed during drafting. Qualify the pinned CLI/API and actual account; never infer capability from the documentation alone.
+
+Merge H using the existing B/H/T checks; for external sites verify the merged tree against the source bound to the static manifest. Git merge must not independently publish or trigger a new provider build. Administrator prerequisites: protect all generated deployment URLs, disable competing Vercel Git builds/automatic production aliasing, establish a known previous production deployment and a verified rollback path. Fresh targets without a previous production release need an explicit initial bootstrap outside this automatic update path. Existing `main -> Vercel auto-deploy` from SPEC-005/README must be replaced for this process, not left racing the executor.
+
+After merge, read back current production deployment and expected predecessor, revalidate the protected configuration, and promote only the approved staged deployment ID. Verify public domain routing, deployment ID/static manifest, expected pages and updated prices/legal text; record tested observations and provider receipts. No new build, floating branch alias or successful deployment-status URL can substitute for this identity binding. Public production remains deliberately public; generated and unapproved candidate URLs remain protected. The provider owner is an infrastructure trustee; normal reviewers get no direct Vercel bypass access.
+
+Website-only success completes the task after public verification. On failure restore the previous provider deployment without rebuilding, verify its public routes/content, prepare an unmerged revert PR for M and block further delivery as in the common recovery policy. Protect previous/current/provider artifacts against cleanup. If provider rollback or identity readback fails, report recovery_failed and the observed state; do not assert that traffic was restored. Honor any known provider operation still in flight before releasing/reassigning the delivery lease.
+
+### Coordinated website and catalog price change
+
+One approved candidate groups a code change and staged record changes; no live catalog write occurs during generation or preview. Approval binds the before/after decimal price, exact price/product/variant scope and source versions, tax calculation/rounding result, website artifact, operation IDs and the required combined permission set. Preflight re-reads catalog state before merge/promotion and again at catalog apply. A preflight conflict stops before publication; a conflict after publication enters compensation. This is a journaled sequence with compensation, not a transaction spanning Vercel and PostgreSQL.
+
+State sequence: `requested -> validating -> merging -> merged -> publishing_site -> verifying_site -> applying_catalog -> verifying_pair -> succeeded`. The unchanged catalog before-state and the approved staged after-state are both shown in OM. A short discrepancy window begins when the public domain serves the new site; it ends only after the catalog apply succeeds or provider rollback is verified. Persist timestamps and show an incident when the window remains open; never describe the two systems as atomically updated.
+
+1. Before publication, validate all exact record identities/versions and authority, both provider artifacts, and ability to perform a compare-and-set through a qualified catalog adapter. Reserve operation IDs and prepare a durable outcome journal. Lack of a proven safe write adapter blocks the entire paired delivery before site promotion.
+2. Publish and verify the website as above. If this fails, leave the catalog untouched, restore the previous site if necessary, and enter the recovery block.
+3. Apply the approved record intention through `tasks.delivery.apply_catalog_change`, a new narrow deterministic app-owned command, not a general model tool or raw UPDATE_ENTITY permission. Its input contains deployment/intention/approval IDs and expected versions, never an arbitrary catalog patch. It resolves the immutable proposal internally, checks live actor authorization and granted service authority, tenant/org, target mapping, active delivery fence and exact allowed price fields, then uses catalog pricing validation/calculation and command side effects.
+4. Prove current row and parent/product/variant/price-kind/tax/applicability context still match the approved before-state under the mutation's concurrency boundary. Persist an applied receipt atomically with the price mutation, including operation ID, input digest, resulting normalized prices/version and scoped record identities. A repeated operation returns that receipt only if its digest matches; a same-value row without a receipt is not proof that this operation succeeded. Compare-and-set must cover ordinary human/API writers, not just competing factory jobs.
+5. After durable catalog commit, verify the receipt/current catalog and website both correspond to the approved after-state. Mark Done only then. If the write definitely failed/conflicted, the catalog remains unchanged by this task: roll back the site, prepare the code revert PR and require intervention. Never overwrite a concurrent human price change to restore an old value.
+6. If the catalog request times out, do not immediately roll back or retry blindly. Reconcile the operation receipt and current source version first. Applied receipt with exact result means continue paired verification; no receipt with proven unchanged before-state permits retry under the same operation; ambiguous or changed state requires intervention and a tracked inconsistency. If the catalog did commit but later paired verification fails, do not leave new catalog data with a silently rolled-back site: retain the last observed consistent pairing when possible; any automatic price compensation requires its own compare against this operation's after-version/values, atomically receipted, and must never overwrite later edits. If safe compensation is unavailable, block with both observed states and require an administrator instead of claiming recovery.
+
+Installed catalog evidence: 0.8.0 has `catalog.prices.update` and `/api/catalog/prices`, but `catalog/workflows.ts` deliberately excludes prices from workflow-safe commands because parent/pricing context can be stale. `commands/prices.ts` uses a forked entity manager and flushes before some side effects. Consequently an outer tasks wrapper or pre-read is **not proof** of atomic compare-and-set plus receipt. Before implementation readiness, the owner must demonstrate an installed transaction/guard seam covering price and relevant context, or propose a reviewed upstream capability. Do not modify the installed package, declare unrestricted prices workflow-safe, bypass command side effects, or claim this gap is solved by a wrapper name. Paired price delivery remains disabled until this gate passes. Website-only tasks do not require this adapter.
+
+For several catalog rows in one task, initial paired delivery supports only a proven all-or-none catalog transaction with per-row receipts and complete prevalidation. If that is unavailable, require a human-approved decomposition into independently publishable tasks before any site publication; never sequentially leave a partially changed price list while reporting rollback complete. New rows, destructive changes and unsupported pricing contexts stay outside this first price adapter.
+
+### Provider and catalog evidence
+
+Official sources consulted 2026-09-19: [Vercel Deployment Protection](https://vercel.com/docs/deployment-protection), [automation bypass](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation), [staged promotion](https://vercel.com/docs/deployments/promoting-a-deployment), [prebuilt deploy CLI](https://vercel.com/docs/cli/deploy). They document Standard Protection on Hobby, project-wide bypass secrets, secret availability in builds, and no-rebuild staged-production promotion. They do not prove settings/entitlements of the actual account. Repository baseline is [SPEC-005](../../docs/specs/SPEC-005-2026-09-19-stal-zbiorniki-www.md) plus website commit `6ae78f584dffa312b0dd1cf28f98c49d98d35692`; README currently describes public preview and main auto-deploy, both incompatible with the newly selected flow.
+
 ## User Journeys
 
 J-DL-1: User opens candidate in the existing run view, sees version/base, diff/files, independent review, tests, migration/impact summary and preview, then chooses Approve merge and deploy. The dialog names the hosting instance, affected shared code and exact candidate. The timeline shows validation, merge, drain, backup, migration, activation and verification. Only observed success marks the task Done and releases the delegate.
@@ -207,9 +244,10 @@ All tasks-owned rows are scoped by trusted tenant/org; cross-module links are ID
 
 | Record | Minimum fields / invariants |
 |---|---|
-| Approval | ID, task/change/candidate IDs, manifest hash, human ID, enrollment/policy epoch, B/H/T/image, previous deployment ID, requestedAt/expiresAt, request ID, decision, consumedBy; unique request ID per installation. |
+| Approval | ID, target ID/config epoch, artifact kind, task/change/candidate IDs, manifest hash, human ID, enrollment/policy epoch, B/H/T/image, previous deployment ID, requestedAt/expiresAt, request ID, decision, consumedBy; unique request ID per installation. |
 | Deployment | ID, installation, approval, candidate digest, expected previous release, state/reason, fence, step/operation sequence, M, observed image/schema, started/finished; one active operation per installation enforced by unique lease record. |
 | Release | immutable source/image/config/migration/evidence identity, parent release, activatedAt, verifiedAt, result; never a floating branch pointer. |
+| Catalog apply receipt | operation/intention/deployment IDs, digest, before/after context versions, normalized result and event delivery state; atomic with mutation, unique operation ID. Required seam is DL-Q4. |
 | Recovery | failed deployment, previous release, backup refs, rollback observations, revert operation/PR, resolution evidence and resolving human. |
 | Artifact pin | artifact/dataset/backup identity, owning deployment/recovery, reason, acquiredAt/releasedAt; atomically shared with cleanup admission. |
 
@@ -228,9 +266,10 @@ Proposed additive guarded command routes. Resolve candidate/task/installation fr
 | GET `/api/tasks/deployments/{id}` | ID | sequenced state, B/H/M/image, verification, recovery refs | DL-06 |
 | POST `/api/tasks/deployments/{id}/cancel` | requestId, expectedVersion, reason | 202 only pre-merge; 409 recovery_required after merge intent may have executed | DL-01/05 |
 | POST `/api/tasks/deployments/{id}/resolve-recovery` | requestId, expectedVersion, resolution evidence IDs | 202 reconciliation, not immediate unblock; recover feature + admin | DL-05 |
+| POST internal `/api/tasks/deployments/{id}/catalog-apply` | intentionId, requestId, expectedVersion; no raw patch | durable operation result/202 pending; scoped executor plus approved human/price authority, CAS or conflict | DL-04/05 |
 | POST internal `/api/tasks/delivery-receipts` | operationId, sequence, digest, state ref | durable 202 or hash-conflict 409; installation service identity | DL-06 |
 
-Commands: `tasks.deployment.approve`, `tasks.deployment.cancel`, `tasks.deployment.resolve_recovery`. Network side effects occur after committed outbox. No ordinary update/delete approval endpoint; revocation is a new audited event. Executor `/v1/deployments` accepts only registered manifest+approval IDs with request ID and fence; `/v1/deployments/{id}` returns safe status. App cannot send raw deploy commands. Approval cannot bypass executor validation.
+Commands: `tasks.deployment.approve`, `tasks.deployment.cancel`, `tasks.deployment.resolve_recovery`, plus guarded non-model-tool `tasks.delivery.apply_catalog_change` for v2 paired delivery only. Network side effects occur after committed outbox. No ordinary update/delete approval endpoint; revocation is a new audited event. Executor `/v1/deployments` accepts only registered manifest+approval IDs with request ID and fence; `/v1/deployments/{id}` returns safe status. App cannot send raw deploy commands. Approval cannot bypass executor validation.
 
 ## Events, Jobs, Notifications, and Cross-Module Flows
 
@@ -266,6 +305,10 @@ Self-contained fixtures: fake GitHub with controllable races, two tenants and pe
 | DL-T08 | Inference pool exhausted, GitHub unavailable, revert conflict, existing recovery PR: deterministic rollback still runs; retry never duplicates revert; later deploys remain blocked; a manually approved incident-scoped forward repair records the exact new image and full verification, then resolution clears the block while unrelated queued deliveries remain unexecuted and require revalidation. |
 | DL-T09 | Cleanup races rollback/backup pin; pins win atomically; recovery resolution refuses unverifiable Git/runtime/schema divergence. |
 | DL-T10 | Browser: full diff-to-approval flow, changes requested, stale approval, cancel boundary, rolled-back/recovery views, permissions, light/dark/narrow, keyboard and conflict states. |
+| DL-T12 | Target-aware approval: ordinary, price, legal and mixed changes require the union of features; author may hold all; no waiver; missing permission or changed source invalidates approval. |
+| DL-T13 | Staged static deployment test: wrong account/project/artifact, unexpected provider build, main auto-deploy race, missing protection or rollback predecessor blocks. Exact approved deployment serves production without rebuild; protected URLs remain protected. |
+| DL-T14 | Site succeeds then catalog conflicts/fails: old site restored, live catalog not overwritten, recovery blocked. Inject catalog commit timeout: reconcile atomic receipt before retry/rollback; later human edit is preserved; multi-row partial write is impossible or rejected pre-publication. |
+| DL-T15 | Restart at site promotion/catalog commit/verification/compensation boundaries; reattach provider/catalog operation IDs, never duplicate price writes or lose discrepancy state. Test rollback failure and post-commit verification failure without falsely reporting success. |
 | DL-T11 | Shared-instance tenant user attempts granting itself deploy enrollment; protected control/CI/profile changes cannot pass auto-delivery; forged/replayed callback rejected. |
 
 ## Implementation Phases
@@ -288,6 +331,14 @@ Depends on P2. Add backup admission/restore proof, migration manifests/classifie
 
 Depends on P3. Document/install the driver into an existing local instance, record host/process/storage capacity, verify administrator emergency recovery, then qualify the same contracts on a separately approved VPS. No automatic purchase or remote exposure. Exit: local qualification evidence matches instance/source/image/platform, and VPS readiness is explicitly separate until its DNS/TLS/firewall/backups and tests pass.
 
+### DL-P5: external website publication and combined approval
+
+Depends on execution EX-P5, DL-P1 approval and the shared journal/recovery/pin contracts specified in DL-P2/P3, plus the qualified protected provider profile. It does not depend on the OCI/OM-migration driver or VPS qualification; provider-specific tests qualify the same shared invariants. Add v2 validation, target/semantic permission gates, prebuilt staged deployment promotion/rollback and website verification. No OM worker drain for this profile. Tests DL-T12/13/15 plus UI/auth cases close DL-01/02/03/05/06 for website-only work. Exit: one final OM approval publishes the exact tested static artifact, or rollback/recovery is truthful; all direct unapproved URLs deny access. Provider configuration is a separately approved administrator operation.
+
+### DL-P6: coordinated catalog price delivery
+
+Depends on DL-P5 and DL-Q4 atomic catalog qualification. Implement staged intentions, narrow apply command/receipt, source-context conflict check, site-first sequence and safe compensation/reconciliation. Close DL-04/05/06 with DL-T12/14/15 and proposal/price UI tests. Exit: approved price changes reach site then catalog; a concurrent edit or failure restores the site without overwriting newer catalog state; ambiguous commits never cause blind repeats. If the framework seam is absent, this phase remains blocked while website-only delivery remains independently useful.
+
 Validation each phase: Corepack Yarn generate/typecheck/lint/ds:check/test/build plus route-specific `test:integration:ephemeral`, driver/GitHub fault fixtures, image and restore verification. Never change repository protections, apply migrations to the user's runtime or trigger an actual merge merely to validate this documentation.
 
 ## Requirement Traceability
@@ -300,6 +351,8 @@ Validation each phase: Corepack Yarn generate/typecheck/lint/ds:check/test/build
 | DL-04 | J-DL-1, drain/backup/migration/verify | P2-P3 | T04/T05/T06 | A04 |
 | DL-05 | J-DL-3, journal/recovery/revert | P2-P3 | T07/T08/T09 | A05 |
 | DL-06 | J-DL-1/3, projections/task outcome/pins | P3 | T09/T10 | A06 |
+| DL-01/02/03/05/06 | target-aware static publication and legal gate | P5 | T12/T13/T15 | A07 |
+| DL-04/05/06 | approved site-first catalog intention and receipt | P6 | T12/T14/T15 | A08 |
 
 Prefixes omitted in phase/test/acceptance cells are `DL-`. Exact source-present reference capabilities:
 
@@ -314,11 +367,28 @@ Prefixes omitted in phase/test/acceptance cells are `DL-`. Exact source-present 
 | DI adapter registration | `module.di-registration`: `src/modules/example/di.ts` | emitted-example | P1/T01 |
 | Existing run/settings UI additions | `ui.page-shell`: `src/modules/example/backend/todos/page.tsx` | emitted-example | P1-P3/T10 |
 
+External-target extension surfaces and distinct self-contained fixtures:
+
+| Requirement | Surface | Capability / exact reference | Classification | Phase / test |
+|---|---|---|---|---|
+| DL-01 | Legal/commercial approval features | `module.acl-features`: `src/modules/example/acl.ts` | emitted-example | DL-P5/DL-T12-permission-union |
+| DL-01/03 | Target-aware approval command | `commands.write`: `src/modules/example/commands/todos.ts` | emitted-example | DL-P5/DL-T12-target-approval |
+| DL-01/06 | Approval UI with price before/after | `ui.page-shell`: `src/modules/example/backend/todos/page.tsx` | emitted-example | DL-P5-P6/DL-T12-price-approval-ui |
+| DL-04/05 | Catalog apply command registration | `commands.write`: `src/modules/example/commands/todos.ts` | emitted-example | DL-P6/DL-T14-apply-command |
+| DL-04/05 | Catalog apply guarded route | `runtime.bulk-operation-progress`: `src/modules/example/api/todos/bulk-complete/route.ts` | emitted-example | DL-P6/DL-T14-apply-route |
+| DL-04/05 | Catalog operation receipt entity | `data.entities`: `src/modules/example/data/entities.ts` | emitted-example | DL-P6/DL-T14-atomic-receipt |
+| DL-05/06 | Catalog receipt read route | `api.crud-query-engine-custom-fields`: `src/modules/example/api/todos/route.ts` | emitted-example | DL-P6/DL-T14-receipt-read |
+
+Each named fixture creates and cleans up its own scoped records and exercises authorization, stale inputs and retry behavior relevant to that surface. The command/route/entity examples prove registration patterns only. Atomic catalog CAS, parent-context concurrency and a receipt committed in the same transaction remain unresolved DL-Q4 qualification dependencies; neither the example nor an outer wrapper proves them. The external Vercel upload/promotion driver is not a module discovery contribution; its independent DL-T13 fixture proves exact artifact promotion and protection before DL-P5 is enabled.
+
 Each route is a distinct fixture case; task status/link integration must be verified against the installed SPEC-002 command contract before enabling the process version. External executor driver is not a module-discovery surface and is qualified by DL-T03 through DL-T09, not falsely classified as an emitted example.
 
 ## Rollout, Migration, and Rollback
 
 ### Migration & Backward Compatibility
+
+Target-aware v2 is additive; no v1 consumer is allowed to misinterpret static artifacts as images. Existing public-preview/waiver/main-auto-publish policies in SPEC-005 remain legacy behavior until the installation is explicitly switched to this process version, at which point qualification must refuse them. Existing Vercel settings are not changed by this document. Price adapter activation is separately gated on proved concurrency/receipt semantics; registering an app command does not automatically expand the framework's safe vocabulary.
+
 
 The delivery capability is administrator-enabled per installation only after execution candidate v1, protected external policy and compatible driver are qualified. Add tasks-owned state without removing existing change fields/routes. Keep delivery protocol/schema version explicit; incompatible candidates are rejected with a visible error. Preserve legacy non-code/GitHub-review processes; process definitions already running keep their version.
 
@@ -343,25 +413,29 @@ New delivery-enabled process retains task ownership until verified deployment; m
 - DL-A05: each injected failure recovers the previous compatible service or honestly reports recovery_failed; deterministic revert PR and deployment block survive empty inference budget.
 - DL-A06: task Done means observed success in delivery mode; UI/audit/pins reflect actual Git/runtime/schema and cannot leak another tenant's task.
 
+- DL-A07: every external website publication has one human approval with all applicable legal/commercial permissions; the exact tested static deployment is promoted without rebuild and unsafe provider configuration blocks it.
+- DL-A08: the paired operation changes the website before catalog, detects concurrent catalog/context changes, reconciles uncertain commits, and compensates or reports intervention without overwriting later edits.
+
 ## Final Compliance Report
 
 | Check | Status | Evidence / gate |
 |---|---|---|
 | Scope cohesion | Draft-defined | Candidate consumer; no coding/runtime implementation. |
 | End-to-end and recovery contracts | Draft-defined | Approval through rollback/revert, no deferred recovery in first real delivery phase. |
-| Data/API/UI/test traceability | Draft-defined | DL-01..06 and T01..11; framework task commands require version qualification. |
+| Data/API/UI/test traceability | Draft-defined | DL-01..06 and T01..15; framework task commands require version qualification. |
 | Driver/provider conformance | Not executed | GitHub race, safe drain, backup restore and compatible rollback tests defined, not run. |
-| Independent architecture/security review | Pass for draft handoff | Architecture/scope and security reviewers rechecked corrections on 2026-09-19; no open findings. This does not certify runtime behavior. |
+| Independent architecture/security review | Passed for draft handoff | Independent architecture/scope and security reviews cover provider promotion and paired catalog changes; no runtime qualification implied. |
 | Implementation authorization | Not granted | Documentation-only request. |
 
 Verdict: Blocked - installation/provider conformance gates and implementation authorization remain; no deployment readiness claim.
 
 ## Open Questions
 
-No unresolved product question from the interview. DL-Q1: infrastructure owner must qualify the installed worker/process safe-checkpoint adapter and Compose driver; DL-Q2: repository administrator must establish compatible merge rules and absence of competing deployment automation; DL-Q3: data/operations owner must qualify backup/restore and old/new schema compatibility. These are explicit installation/implementation gates, not requests for the user to answer facts discoverable from the system.
+No unresolved product question from the interview (through D-042). DL-Q1: infrastructure owner must qualify the installed worker/process safe-checkpoint adapter and Compose driver; DL-Q2: repository administrator must establish compatible merge rules and absence of competing deployment automation; DL-Q3: data/operations owner must qualify backup/restore and old/new schema compatibility. DL-Q4: catalog/framework owner must qualify atomic price/context compare-and-set and durable receipts, including concurrent ordinary writers and post-commit side effects; otherwise propose an upstream seam. DL-Q5: infrastructure/security owner must prove protected staged static upload, exact-ID promotion/rollback, and disabled competing provider automation on the actual account. These are explicit installation/implementation gates, not requests for the user to answer facts discoverable from the system.
 
 ## Changelog
 
 | Date | Change |
 |---|---|
 | 2026-09-19 | Initial companion specification after D-037; approval, merge, exact-image deployment and recovery contracts. |
+| 2026-09-19 | D-038..042: registered static-site promotion, legal authorization and site-first paired catalog delivery; provider and catalog gates explicit. |

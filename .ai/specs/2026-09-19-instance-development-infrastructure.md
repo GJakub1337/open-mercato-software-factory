@@ -5,25 +5,26 @@
 
 ## Outcome and document boundaries
 
-Software Factory is an installable module that lets an authorized human delegate a task to Open Mercato Developer, inspect the resulting PR diff and running preview inside Open Mercato, and approve deployment to that same instance. The initial installation is local, with a later single-VPS installation. The target is the hosting instance's configured source repository, not an arbitrary unrelated repository.
+Software Factory is an installable module that lets an authorized human delegate a task to Open Mercato Developer, inspect the resulting PR diff and running preview inside Open Mercato, and approve deployment to that same instance. The initial installation is local, with a later single-VPS installation. Targets include the hosting instance's configured source repository and administrator-registered external websites, initially Stal-Zbiorniki. A task selects one target; unregistered repositories are refused.
 
 Decision D-037 accepts two linked specifications:
 
 1. [Execution and verified candidates](2026-09-19-agent-execution-and-preview.md): isolated OpenCode work, budgets, human interaction, review, testing, PRs, and authenticated previews. Independently useful as a task-to-PR module without enabling deployment.
 2. [Candidate approval and instance delivery](2026-09-19-instance-delivery-and-recovery.md): consume the verified candidate contract, approve, merge, drain, deploy the exact tested image, verify, roll back, and reconcile Git. Can be installed after the execution capability; does not implement an agent loop.
 
-The [decision ledger](2026-09-19-instance-development-decisions.md) contains all 37 accepted product decisions. Technical defaults in the specifications are proposals derived from these decisions. Documentation does not authorize setup of accounts, paid inference, implementation, publication, or changes to an existing runtime.
+The [decision ledger](2026-09-19-instance-development-decisions.md) contains all 42 accepted product decisions. Technical defaults in the specifications are proposals derived from these decisions. Documentation does not authorize setup of accounts, paid inference, implementation, publication, or changes to an existing runtime.
 
 ## Existing specifications and compatibility deltas
 
-Repository baseline: `f57341d`, root-level standalone application. Existing documents are Draft designs, not evidence that their runtime exists.
+Repository baseline: `0cf9e24`, root-level standalone application. Existing documents are Draft designs, not evidence that their runtime exists.
 
 | Source | Reuse | Delta required by this package |
 |---|---|---|
 | [SPEC-001](../../docs/specs/SPEC-001-2026-09-18-agentic-software-factory.md) | Agent Orchestrator process, explicit delegation, grants, durable workflow | Replace GitHub-only review and no-auto-merge assumptions for the instance-development mode; permissioned author approval allowed; change isolation, resource retention, budgets, and delivery boundaries as specified. |
 | [SPEC-002](../../docs/specs/SPEC-002-2026-09-18-tasks-module.md) | Staff tasks/projects/comments, delegation, fencing, task commands | In delivery-enabled mode, `done` means verified deployment, not manually marking an externally merged PR done. Review fixes remain attempts of the same task, not automatically delegated finding subtasks. |
 | [SPEC-003](../../docs/specs/SPEC-003-2026-09-18-task-change-set.md) | Code change row, run timeline, evidence manifest and task drawer injection | Add an actual diff. Enforce task ACL on every preview request, including localhost. Replace 72-hour retained compute with 30-minute sleeping preview and seven-day terminal cleanup. Raw transcripts are not an ordinary task artifact. |
-| [SPEC-004](../../docs/specs/SPEC-004-2026-09-18-demo-stal-zbiorniki.md) | None required | Its business-data/WordPress demo stays outside this scope. |
+| [SPEC-004](../../docs/specs/SPEC-004-2026-09-18-demo-stal-zbiorniki.md) | Fictional company/catalog scenario | The external website and coordinated catalog price tasks are now in scope; WordPress stays out. |
+| [SPEC-005](../../docs/specs/SPEC-005-2026-09-19-stal-zbiorniki-www.md) | Static website structure, npm checks and Vercel target | New mode replaces public preview, low-risk waiver and main auto-publication with task-authenticated preview, human approval for every change and exact staged-deployment promotion. |
 
 Do not silently change those documents or installed APIs. The new behavior is an explicit, administrator-enabled instance-development process version. Existing non-code processes remain unchanged. The configured spec location is `.ai/specs`; existing SPEC numbers are not reused.
 
@@ -74,11 +75,23 @@ Local Docker metadata identified OpenCode 1.18.3 image digest `sha256:1ccc9d47dd
 | D-017, D-018, D-019, D-027 | Execution: attempt/daily accounting, continuation and manual resume |
 | D-013, D-022 | Execution: GitHub broker and frozen profile; delivery: credential boundary |
 | D-037 | Two linked documents, execution candidate contract consumed by delivery |
+| D-038 | Both target kinds; all website changes require human final approval |
+| D-039, D-040 | Staged catalog intentions, site-first publication, compare-and-set and compensation |
+| D-041 | Legal feature plus union of permissions for mixed tasks |
+| D-042 | Vercel protection plus per-request OM task ACL; no public-demo exception |
 
 Proposed technical defaults, not additional interview decisions: approval validity 24 hours; drain deadline ten minutes; post-activation observation two minutes; audit retention 90 days; keep two verified releases and at least seven days of backup recovery coverage. Administrators configure these through protected policy. They must be checked against measured local capacity before activation.
 
+## External target qualification
+
+Website source inspected at `6ae78f584dffa312b0dd1cf28f98c49d98d35692`. Prices and terms are editable repository code; tests exercise the exported site. The new mode supports varied content/code changes, not just two hard-coded operations. v2 candidates distinguish OCI images from immutable Vercel static deployments while reusing tasks, budgets, independent review and approval.
+
+Vercel's [Standard Protection](https://vercel.com/docs/deployment-protection) is documented on Hobby, but actual project configuration and automation-bypass availability require administrator qualification. [Ordinary preview promotion rebuilds; staged-production promotion does not](https://vercel.com/docs/deployments/promoting-a-deployment). A credential-free static build and trusted prebuilt uploader avoid exposing Vercel-injected bypass secrets to candidate build scripts. No actual account settings were changed or certified.
+
+Catalog 0.8.0 `catalog/workflows.ts` explicitly excludes prices from safe workflow writes. `catalog/commands/prices.ts:488-723` implements `catalog.prices.update` with a forked entity manager; API `catalog/api/prices/route.ts:62-65` requires `catalog.pricing.manage`. A wrapper cannot assume atomic source-version checks and applied receipts. The paired-price phase is blocked until a qualified framework seam exists; the independent website-only flow remains specifiable.
+
 ## Draft verification
 
-On 2026-09-19, independent architecture/scope and security reviews passed the corrected drafts with no open findings. Corrections covered exhausted-attempt continuation, incident-scoped manual forward recovery, pre-publication CI privileges, snapshot recipients/derivatives, and preview cookie isolation. The check was read-only and did not exercise application behavior.
+On 2026-09-19, independent architecture/scope and security reviews passed the original self-instance drafts with no open findings. Independent architecture/scope and security reviews also passed the external-target extension after correcting dependency scope and per-surface traceability. Corrections covered exhausted-attempt continuation, incident-scoped manual forward recovery, pre-publication CI privileges, snapshot recipients/derivatives, and preview cookie isolation. The check was read-only and did not exercise application behavior.
 
-Local document checks passed: all 37 decisions have coverage, both specifications preserve the required template sections, local links/reference files exist, and whitespace checks pass. Runtime tests, provider calls, image builds, merges, database operations and deployments were not run as part of drafting.
+Local document checks passed: the original 37 decisions had coverage, both specifications preserve the required template sections, local links/reference files exist, and whitespace checks pass. Runtime tests, provider calls, image builds, merges, database operations and deployments were not run as part of drafting.

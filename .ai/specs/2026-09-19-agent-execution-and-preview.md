@@ -8,11 +8,11 @@
 
 ## TLDR
 
-An authorized user delegates an existing staff task to Open Mercato Developer. Agent Orchestrator coordinates a separate OpenCode coding environment, independent review, tests, a PR, and an authenticated preview. The result is a versioned, immutable candidate with evidence that the delivery capability can consume. This capability never merges or deploys the hosting instance.
+An authorized user delegates an existing staff task to Open Mercato Developer for either the hosting instance or a registered external website repository. Agent Orchestrator coordinates a separate OpenCode coding environment, independent review, tests, a PR, and an authenticated preview. The OCI/self-instance profile below is extended by the explicit external static-site sections; shared scope, budget, journal and approval invariants apply to both. The result is a versioned, immutable candidate with evidence that the delivery capability can consume. This capability never merges or deploys the hosting instance.
 
 ## Problem Statement
 
-The existing factory designs delegate tasks but place code review in GitHub and describe transient runner execution. They do not fully define parallel execution against the hosting instance's source, trustworthy cost admission, checkpoint recovery, or a tested immutable artifact. A person needs to see both the proposed change and its behavior without leaving Open Mercato, while agent code cannot access live data or privileged controls.
+The existing factory designs delegate tasks but place code review in GitHub and describe transient runner execution. They do not fully define parallel execution against the selected registered repository, trustworthy cost admission, checkpoint recovery, or a tested immutable artifact. A person needs to see both the proposed change and its behavior without leaving Open Mercato, while agent code cannot access live data or privileged controls.
 
 ## Overview and Success Measures
 
@@ -36,7 +36,7 @@ Prior art: adopt OpenHands' external controller/per-run runtime separation; reta
 
 ## Non-goals
 
-Merge/deployment, WordPress, automatic intake, autonomous delegation of decomposition subtasks, support for multiple coding harnesses, arbitrary target repositories, access to production credentials, full E2E on every change, and framework/orchestrator/toolchain upgrades through this execution path. No replacement task model or orchestrator. No local tunnel or unauthenticated localhost preview.
+Merge/deployment, WordPress, automatic intake, autonomous delegation of decomposition subtasks, support for multiple coding harnesses, unregistered target repositories, access to production credentials, full E2E on every change, and framework/orchestrator/toolchain upgrades through this execution path. No replacement task model or orchestrator. No local tunnel or unauthenticated localhost preview.
 
 ## Proposed Solution
 
@@ -58,7 +58,8 @@ The infrastructure package has a trusted supervisor, GitHub broker, inference ga
 
 | Term | Meaning / invariant |
 |---|---|
-| Instance | One running application and its configured source repository/base branch, with an immutable installation ID. It is a shared code deployment boundary across its tenants. |
+| Instance | The hosting Open Mercato installation, common identity authority and inference-budget boundary. Its own code deployment affects its tenants; a website deployment affects only the registered website target. |
+| Target | Administrator-registered immutable repository ID/base branch and deployment profile. `self_instance` targets the hosting application; `external_site` initially targets the Stal-Zbiorniki static site. Every task selects exactly one target. |
 | Delegation | SPEC-002 task-to-agent assignment; one active generation. Stale generations cannot mutate task state or create effects. |
 | Attempt | One bounded execution allocation for a task/delegation, including its phase sessions. Review fixes create another attempt, keeping task, branch, and PR. |
 | Candidate | Frozen source tree, image digest, profile, verification manifest and review; any mutation creates a new candidate. |
@@ -81,14 +82,14 @@ Every business row has trusted `tenant_id` and `organization_id`; resolve them f
 | Actor | Feature and additional conditions |
 |---|---|
 | Task reader | `tasks.view`, actual task access, plus `tasks.code.view` for source diffs and code artifacts. Source visibility can disclose shared application code beyond one tenant. |
-| Delegator | `tasks.delegate`, task access, plus administrator-assigned instance developer enrollment. A tenant role alone cannot authorize changes affecting the whole instance. |
+| Delegator | `tasks.delegate`, task access, plus administrator-assigned developer enrollment for the selected target. A tenant role alone cannot authorize changes affecting the whole instance. |
 | Instructor / resumer | `tasks.runs.control`, task access and enrollment; owner/author without this feature is insufficient. |
 | Snapshot requester | `tasks.snapshots.use` plus separately recorded source-data-owner consent for this attempt and allowed data scope. |
 | Settings operator | `tasks.infrastructure.manage` plus instance administrator enrollment. Secrets are configured externally, never returned by the settings API. |
 | Process principal | `tasks.process`, exact installed workflow grants; never inherits the initiating human's credential. |
 | Reviewer agent | Read-only candidate checkout and scoped inference capability; cannot alter candidate or approve deployment. |
 
-Enrollment and the allowed tenant/org binding are maintained by the external installation administrator. Task ACL remains an additional gate. If staff or Agent Orchestrator is absent/incompatible, disable delegation with a named dependency error; preserve ordinary staff operation. A module UI guard alone does not grant host authority.
+Target enrollment and the allowed tenant/org binding are maintained by the external installation administrator. Task ACL remains an additional gate. If staff or Agent Orchestrator is absent/incompatible, disable delegation with a named dependency error; preserve ordinary staff operation. A module UI guard alone does not grant host authority.
 
 ## Reuse and Ownership Map
 
@@ -122,7 +123,7 @@ flowchart LR
 
 Local topology: application and infrastructure bind all published sockets to loopback explicitly, including IPv6 where enabled. Preview backends, databases, Redis, agent servers, Docker daemon, and Caddy admin API are not public endpoints. Existing project Compose defaults are not proof of this desired topology. Containers communicate on explicit private networks. VPS topology retains service contracts but adds administrator-provisioned TLS, domain routing, firewall, backup destination and secret store before remote access. This spec neither selects Contabo nor assumes VM-level isolation inside Docker.
 
-Run envelope `schemaVersion=1`: installation/task/delegation/process/workflow IDs, attempt ID, fence, idempotency key, repo ID/base SHA, profile digest, risk/size and approved plan digest, accepted task revision, permitted data seed reference, limits, and callback correlation. Never accept a caller-supplied repository URL, Docker options, command URL or credential. Supervisor validates the envelope against external installation policy.
+Run envelope `schemaVersion=1`: installation/task/delegation/process/workflow IDs, attempt ID, fence, idempotency key, target ID/configuration epoch, repo ID/base SHA, profile digest, risk/size and approved plan digest, accepted task revision, permitted data seed reference, limits, and callback correlation. Never accept a caller-supplied repository URL, Docker options, command URL or credential. Supervisor validates the envelope against external installation policy.
 
 Repository execution profile proposes named commands (`install`, `generate`, `typecheck`, `lint`, `dsCheck`, `test`, `build`, `integration`, `health`), approved service image digests, app port, fixture/migration manifest, resource requests and changed-path test map. Host policy caps each value. Resolve and freeze the profile from the trusted base; changes to the profile require administrator admission for a later run, not a privilege change during this run. Repository shell commands and install hooks remain untrusted code executed only in the sandbox. Build inputs are the exact Git tree, lockfile and approved base/toolchain digests; no credential-bearing home mounts or Git hooks from the host.
 
@@ -148,9 +149,9 @@ After 30 minutes waiting for a human, freeze/stop processes, persist writable wo
 
 Instruction states: `accepted`, `queued`, `delivering`, `acknowledged`, `applied`, `rejected`, `delivery_uncertain`. Persist a client request ID and text hash before delivery; send between bounded steps, not concurrently into an ongoing prompt. Session-message correlation determines acknowledgment. If delivery is ambiguous, inspect persisted session messages; do not resend blindly. `applied` requires the next agent step to acknowledge the instruction ID; this means consumed, not that its requested result has been accepted by tests. Comments never call this path.
 
-### Candidate contract v1
+### Candidate contract v1 (self-instance) and v2 (target-aware)
 
-One canonical JSON manifest, persisted immutably by the supervisor and hashed with SHA-256, binds:
+The existing v1 self-instance manifest remains unchanged. One canonical JSON manifest, persisted immutably by the supervisor and hashed with SHA-256, binds:
 
 - schema version; installation/task/delegation/attempt/candidate IDs and fence;
 - immutable repository ID, base branch and `baseSha=B`, PR head `headSha=H`, `treeSha=T` (tree of H), PR number and branch;
@@ -166,6 +167,39 @@ No missing required check, unresolved blocking finding, secret-scan failure, uns
 The broker owns clone/fetch/export, branch push and PR creation. It creates a deterministic task branch and reconciles by repository + head/base + operation marker before retry. GitHub installation tokens never leave the broker. It rejects other repositories/branches, force pushes, base updates, merges, releases, workflow-file changes and unrestricted URL proxying. Git object ingestion rejects path traversal, hooks, unsafe submodules/LFS destinations and unexpected credential URLs. Application dependency changes need plan/security review; privileged CI execution must not be triggered by agent-modified workflow code.
 
 Before the first push or PR, installation qualification inspects every reachable `push`, `pull_request`, `pull_request_target`, `workflow_run`, reusable-workflow and downstream deployment path. Unchanged workflows can still execute attacker-controlled install hooks, tests and scripts. Publication is blocked unless that unreviewed code runs without repository/environment secrets, writable GitHub tokens, privileged self-hosted runners, production network access, or reusable trusted caches/artifacts. Privileged downstream jobs cannot consume untrusted artifacts or code without their own reviewed promotion gate. A default GitHub-hosted runner is not sufficient proof. Required checks must have a qualified unprivileged lane; if the repository cannot supply it, retain a local proposal/evidence and mark publication blocked. Never push first to discover whether privileged CI runs.
+
+### External website execution profile
+
+D-038 through D-042 extend the target scope, not the task/agent model. Reuse the same OpenCode harness, run journal, review counters, shared installation budget, broker, UI and one-task/branch/PR identity. Register `jtomaszewski/hackaton-stal-zbiorniki-landing` explicitly by immutable GitHub repository ID and Vercel project/account ID; do not allow a task or agent to supply arbitrary repository or project URLs. Project/task selectors show target names and allowed repositories. The existing delegation command gains a validated `targetId` for target-aware mode; the server verifies it against project/task enrollment and freezes the binding. Existing tasks resolve to their original self-instance target only through an audited migration binding, never an arbitrary default selected at runtime. Changing target invalidates plan/candidate/approval and requires a new delegation.
+
+Inspected website commit: `6ae78f584dffa312b0dd1cf28f98c49d98d35692`. It is Next.js 16.3.5 with `output: 'export'`, product values in `app/produkty/<sku>/product.ts`, content in the adjacent `page.tsx`, and terms in `app/regulamin/page.tsx`. Its frozen profile uses `npm ci`, lint, typecheck, build and Playwright on `out/`, matching `.github/workflows/site.yml`; Corepack Yarn gates belong to the factory, not this target. CI `site`, baseline checks, changed-path browser tests and independent reviewer remain required. A successful existing Preview deployment is evidence of hosting integration, not proof of current production routing, branch protection, task authorization or exact-artifact promotion.
+
+Supported task categories are open-ended within the registered target and allowed profile: product descriptions, prices, availability, legal text, page content, styling/layout, accessibility and frontend behavior. Classification is semantic as well as path-based: price changes hidden in components still require commercial authority; legal changes moved outside the terms file still require legal authority. Apply the maximum risk and union of permissions across changed files and proposed data mutations. Ordinary application dependency changes remain allowed with an explicit plan and security checks under D-032. Framework, orchestrator, base-image, toolchain, CI and factory-control changes keep the protected manual path from D-024/D-032; support for many change types is not unrestricted publication authority. Dynamic server execution is not admitted by the initial static-site deployment adapter; a task introducing it requires a separately qualified profile and new approval, not silent use of privileged provider builds.
+
+### Candidate v2 and staged catalog intentions
+
+V2 adds immutable target ID/configuration epoch and a discriminated artifact:
+
+- `oci_image`: v1 source/image/provenance fields for self-instance delivery.
+- `vercel_static`: source B/H/T, static file-tree manifest digest, protected build recipe/platform/toolchain, Vercel account/project/deployment ID and deployment-config digest, tested URLs/route inventory and provider receipts. This is an existing staged production deployment, not a floating branch preview URL. No image digest is fabricated for a static artifact.
+
+All common plan, task/delegation/fence, protected-path, independent-review, verification and approval invariants apply. Old v1 consumers reject v2; they never assume its artifact is an OCI image. No rebuild or change of provider configuration is permitted between final approval and publication. The delivery companion owns staged-production promotion and rollback. Source/record mutation proposals, legal/price classification and their authorization requirements are included in the v2 manifest hash. UI labels these artifacts as Tested build and displays provider deployment identity where appropriate.
+
+For a price task, stage a SPEC-003 record change alongside the code change; do not execute it during planning/build/preview. Bind exact catalog price row ID, parent product/variant identity, organization/tenant, price kind, quantity/unit, currency, tax context, applicability dates/customer/channel restrictions, before values/version and decimal after values. For this site's default mapping admit only an unambiguous active regular PLN price for the named SKU; if absent or multiple eligible rows exist, ask a precise question rather than editing an arbitrary row. A new price row, currency/tax-policy change or ambiguous pricing rule is manual-only until separately supported. Keep monetary values as decimal strings in the intention; resolve net/gross with existing pricing/tax services and compare the website's presented amount/rounding to the approved result.
+
+The live catalog remains the current source of truth; the staged after-state is a proposal until delivery succeeds. Build preview from that after-state, mark proposed values, and render before/after in OM beside the website preview. For website-only product work, snapshot current catalog inputs and verify them again before final approval/publication; no undocumented bidirectional sync. The trusted verifier computes `factory/catalog-match` against the approved proposed values for coordinated price changes and unchanged authoritative catalog fields for the remainder. Otherwise a new proposed price could never pass comparison to the still-old live catalog. A changed source version invalidates approval; staging alone emits no live product/price mutation.
+
+### Private Vercel preview and secret boundary
+
+The selected profile must satisfy D-042 before any new provider deployment is created. Configure Vercel Standard Protection over generated/preview/staged deployment URLs, no shareable links or bypass exceptions, and keep only the deliberately published production domain public. Official documentation says Standard Protection is available on Hobby; this is a documented option, not a claim about this project's settings. Vercel Authentication alone is not OM task authorization. Only the existing OM preview gateway serves task users: it checks current task ACL on every request, then proxies an allowlisted immutable deployment ID. Direct user access through Vercel accounts/share links is not an alternative product path; provider administrators remain infrastructure trustees outside task ACL.
+
+The gateway may use a project-scoped automation-bypass secret only in its server-side upstream request header. Never expose it in HTML, browser headers, query strings, redirect Location, cookies, logs, screenshots, agent context or build environment. Strip client-supplied bypass/forwarded headers, never set a Vercel bypass cookie, strip upstream Set-Cookie and sanitize/deny cross-origin redirects; resolve all assets through the authenticated gateway. Cache isolation includes target/candidate/access scope; authorization precedes cache reads, and denied/unavailable auth never serves a cached preview. The proxy cannot be an arbitrary URL fetcher; constrain methods, paths, host resolution, response size and time.
+
+Vercel documents injecting `VERCEL_AUTOMATION_BYPASS_SECRET` into provider builds. Therefore untrusted candidate code must never run in a provider build with that secret available. For this static target, build in the existing credential-free sandbox, export `out/`, validate paths/symlinks and scan outputs, then construct an allowlisted static Build Output API artifact in a trusted uploader workspace. Reject functions, middleware, executables, candidate-supplied routing/proxy rules and unexpected files; do not run candidate `vercel.json`, install hooks, `vercel build` or shell in the credential-bearing publisher. Upload prebuilt static bytes to a protected staged production deployment without provider-side build. The trusted profile owns routing/security headers. Account/project linking is fixed externally. Disable competing Git-triggered Vercel builds for this target as an administrator prerequisite; default public PR previews and auto-publication on main conflict with these requirements.
+
+Qualify that the actual CLI/API/account can upload, protect and test this artifact without running candidate code with provider secrets. If protection/bypass/upload is unavailable or exposes a bypass, show `preview_configuration_blocked`; do not fall back to public preview, purchase an upgrade or change the account automatically. No Vercel settings, credentials or deployment were changed while writing this spec. Protecting preview does not make a public GitHub PR confidential: this public demo target accepts only intentionally publishable fictional data/content; confidential pricing or legal drafts require an appropriately private source target and publication policy before a push.
+
+For remote static preview, the 30-minute idle rule closes gateway sessions and releases any local browser/verification slot. Static provider artifacts do not occupy an always-running local preview container; no claim that OM can suspend provider infrastructure. Reopening requires fresh ACL/consent/candidate validation. Seven-day terminal cleanup requests provider artifact removal only when not current, rollback-pinned or incident-linked, and retains a deletion receipt; an API failure remains pending cleanup.
 
 ## User Journeys
 
@@ -206,9 +240,10 @@ All app-owned rows use UUID IDs, trusted tenant/org columns, timestamps; user-ed
 
 | Record | Minimum fields and uniqueness | Ownership / retention |
 |---|---|---|
-| Execution attempt | task/delegation/process/workflow IDs, ordinal, fence, state/reason, profile/plan digest, budgets, counters, checkpoint reference, updatedAt; unique delegation + ordinal | Supervisor authoritative; scoped tasks projection. |
+| Execution attempt | target ID/config epoch and task/delegation/process/workflow IDs, ordinal, fence, state/reason, profile/plan digest, budgets, counters, checkpoint reference, updatedAt; unique delegation + ordinal | Supervisor authoritative; scoped tasks projection. |
 | Instruction | run, clientRequestId, content hash/encrypted text, status, provider message correlation; unique run + request ID | Tasks durable command, supervisor delivery journal; body removed at terminal cleanup, audit hash retained. |
-| Candidate | immutable v1 manifest/hash, validity reason, change row ID | Supervisor artifact; tasks `code` row references it. No generic CRUD edits. |
+| Catalog intention | target/task/candidate/change IDs, exact scoped source record/context/version, encrypted before/after, required feature set and operation key | Tasks stages it; no live catalog mutation until delivery. |
+| Candidate | immutable v1 or v2 manifest/hash, validity reason, change row ID | Supervisor artifact; tasks `code` row references it. No generic CRUD edits. |
 | Resource journal/outbox/inbox | operation ID, fence, desired effect, observed resource ID, acknowledgment | Supervisor and application adapter, each unique operation/event ID. |
 | Budget day/request | installation/day zone, cap, settled/reserved micro-USD, attempt and phase/request IDs, pricing version | Supervisor gateway ledger; durable, transactionally updated. |
 | Snapshot consent | actor/scope/source, sanitization recipe, purpose, expiry, attempt binding, revokedAt | Encrypted metadata; source secrets never copied. |
@@ -221,6 +256,7 @@ Proposed additive routes, not installed capabilities. All public methods declare
 
 | Method / path | Input | Result / guard | Requirement |
 |---|---|---|---|
+| GET `/api/tasks/targets?projectId=...` | scoped project, pageSize <=100 | enrolled target display names and supported profile; task/delegate access | EX-01/02 |
 | GET `/api/tasks/executions?taskId=...` | scoped task, cursor, pageSize <=100 | attempt summaries + updatedAt; `tasks.view` | EX-01, EX-06 |
 | GET `/api/tasks/executions/{id}` | ID | state, candidate refs, spend, pending decision | EX-03, EX-04 |
 | POST `/api/tasks/executions/{id}/instructions` | clientRequestId, text <=16 KiB, expectedVersion | 202 instruction ID/status; control feature, optimistic lock | EX-03 |
@@ -273,6 +309,8 @@ Use self-contained fixtures for two tenants, task readers/controllers, a stub Gi
 | EX-T08 | Sleep at 30 minutes, revoke ACL during websocket, lose auth service, expire snapshot, wake at capacity, local origin cookie attack: no unauthorized preview request or secret leak; same-host TLS is rejected as cookie isolation and consent cannot leak copied data into prompts/Git/images/evidence; fixtures copy a snapshot row into a commit, image layer and screenshot, and publication must refuse or remove each unauthorized derivative. |
 | EX-T09 | Terminal age reaches seven days during wake/rollback pin race: cleanup claims only unreferenced generation; preserve audit and pinned artifacts. |
 | EX-T10 | User approves decomposition; first slice delegates once, other staff subtasks remain undelegated; scope/risk expansion pauses. |
+| EX-T12 | Delegate to each target; tamper with target/repository/provider IDs; show permitted target choices; wrong-target callbacks and v1/v2 confusion fail closed. Price intent leaves live catalog unchanged; ambiguous row or changed source version blocks; candidate comparison uses proposed values. |
+| EX-T13 | Direct deployment/branch/staged/asset URLs deny unauthenticated access; revoke OM ACL, attempt forged bypass header/cache/redirect/secret exfiltration; only authenticated gateway succeeds. Provider build and dynamic-output attempts are refused before upload. Idle/cleanup preserves active and rollback deployment IDs. |
 | EX-T11 | UI fixture covers settings, drawer, run page, diff and dialogs in light/dark/narrow layouts; keyboard, conflict recovery, names instead of IDs, no raw transcript. |
 
 ## Implementation Phases
@@ -295,6 +333,10 @@ Depends on EX-P2. Implement broker publication, immutable builder/verifier, revi
 
 Depends on EX-P3. Add cleanup claims/pins, redaction/retention and install/upgrade diagnostics for existing local installations, then qualify equivalent single-VPS topology with no public control sockets. Close EX-07 via EX-T09 and repeat isolation/preview tests for the target topology. Exit: terminal cleanup is safe under races, installation docs list actual measured resources and dependencies. Local acceptance does not imply the VPS qualification passed.
 
+### EX-P5: registered external target and private static candidate
+
+Depends on EX-P1-P3 shared execution/candidate contracts and EX-P4 retention guarantees, plus a qualified target/CI/provider policy. Local static qualification does not depend on completing VPS qualification or the self-instance deployment driver. Extend target enrollment/selector and v2 artifact contracts, stage catalog intentions, build the website with its npm profile, upload protected immutable static artifacts, and show proposed data plus private preview. Deliverables are the existing tasks records/routes/widgets and supervisor provider adapter, not a separate task module. Close EX-01/02/05/06 for external targets with EX-T12/13 and existing EX-T01/02/06/07/11. Exit: an authorized user gets a verified website PR and private staged candidate; direct URLs fail, live site/catalog remain unchanged, and a target-mismatch request cannot publish. Provider/account configuration requires separate administrator execution authority.
+
 Every phase: Corepack Yarn generate/typecheck/lint/ds:check/test/build and relevant `test:integration:ephemeral`; no DB reset or migration merely to validate. Infrastructure tests additionally exercise fake provider/GitHub and Docker boundaries. Configuration currently lists these app gates; respect the pinned Yarn version.
 
 ## Requirement Traceability
@@ -308,6 +350,7 @@ Every phase: Corepack Yarn generate/typecheck/lint/ds:check/test/build and relev
 | EX-05 | J-EX-1, candidate v1/broker/reviewer | P3 | T06 | A05 |
 | EX-06 | J-EX-1/3, diff/preview reads | P3 | T07/T08/T11 | A06 |
 | EX-07 | cleanup and retained references | P4 | T09 | A07 |
+| EX-01/02/05/06 | target v2, proposed catalog state, protected static preview | P5 | T12/T13 | A08 |
 
 Prefixes omitted in this table's phase/test/acceptance cells are `EX-`. Extension surfaces and exact reference files are listed below; each route in the API table expands its own allowed/denied/state cases in EX-T07, rather than treating a representative route as full coverage.
 
@@ -321,6 +364,19 @@ Prefixes omitted in this table's phase/test/acceptance cells are `EX-`. Extensio
 | DI and leased workers | `module.di-registration`: `src/modules/example/di.ts`; `runtime.bulk-operation-progress`: `src/modules/example/workers/todos-bulk-complete.ts` | emitted-example | P1-P4/T05,T09 |
 | Run/settings page metadata | `ui.page-shell`: `src/modules/example/backend/todos/page.tsx`, `src/modules/example/backend/todos/page.meta.ts` | emitted-example | P1-P3/T11 |
 | Drawer contribution | `umes.injection-table`: `src/modules/example/widgets/injection-table.ts` | emitted-example | P3/T11 |
+
+External-target additions reuse the same module. Each test below is a separate self-contained fixture within EX-T12 or EX-T13, with its own allowed, denied and stale-state assertions.
+
+| Requirement | Surface | Capability / exact reference | Classification | Phase / test |
+|---|---|---|---|---|
+| EX-01/02 | Target option API | `api.crud-query-engine-custom-fields`: `src/modules/example/api/todos/route.ts` | emitted-example | EX-P5/EX-T12-target-options |
+| EX-01/02 | Target selector UI | `ui.page-shell`: `src/modules/example/backend/todos/page.tsx` | emitted-example | EX-P5/EX-T12-target-selector |
+| EX-01/02 | Delegation target binding command | `commands.write`: `src/modules/example/commands/todos.ts` | emitted-example | EX-P5/EX-T12-target-binding |
+| EX-05 | Candidate v2 persisted evidence | `data.entities`: `src/modules/example/data/entities.ts` | emitted-example | EX-P5/EX-T12-candidate-v2 |
+| EX-05/06 | Candidate v2 evidence read API | `api.crud-query-engine-custom-fields`: `src/modules/example/api/todos/route.ts` | emitted-example | EX-P5/EX-T12-evidence-read |
+| EX-05 | Catalog intention staging command | `commands.write`: `src/modules/example/commands/todos.ts` | emitted-example | EX-P5/EX-T13-intention-staging |
+
+The private provider gateway is an external supervisor component, not a module discovery contribution. EX-T12-private-gateway independently covers authenticated access, revoked task access and direct-provider bypass refusal; EX-T13-catalog-match covers the proposed-price comparison. No example capability is claimed to implement these external protocols.
 
 The source-present example is runtime-disabled; copying a reference is not activating its sample business behavior. Workflow seed and agent registration use the exact installed framework contract, to be pinned in the implementation handoff; they cannot be marked implementation-ready on example evidence alone. The compatibility bridge remains a named EX-Q1 gate until start recovery and grant enforcement are demonstrated.
 
@@ -352,6 +408,8 @@ Disable new admissions first to roll back the module; preserve active journals, 
 - EX-A06: authorized users inspect code/results/preview inside OM; unauthorized access fails on every route and gateway request, including localhost and revocation.
 - EX-A07: cleanup deletes only eligible unpinned resources and preserves the specified audit/rollback evidence.
 
+- EX-A08: both registered target kinds use the same fenced task flow; a static-site candidate includes only approved proposed data, remains private through every direct URL, and cannot execute provider builds with credentials.
+
 ## Final Compliance Report
 
 | Check | Status | Evidence / outstanding gate |
@@ -360,17 +418,18 @@ Disable new admissions first to roll back the module; preserve active journals, 
 | Data/API/UI/failure contracts | Draft-defined | Tables, state transitions, EX-T01 through EX-T11. |
 | Traceability and references | Draft-defined | Requirement and extension matrices; exact installed workflow/agent admission pin remains qualification work. |
 | Technical conformance | Not executed | Provider hard-cap qualification, pinned OpenCode recovery, framework callback adapter, origin isolation and sandbox tests required. |
-| Independent design/security review | Pass for draft handoff | Architecture/scope and security reviewers rechecked corrections on 2026-09-19; no open findings. This does not certify runtime behavior. |
+| Independent design/security review | Passed for draft handoff | Independent architecture/scope and security reviews cover external targets and coordinated price changes; no runtime qualification implied. |
 | Implementation authority | Not granted | Current task is documentation only. |
 
 Verdict: Blocked - runtime qualification gates and implementation authorization remain; this document does not claim a working system.
 
 ## Open Questions
 
-No unresolved product question from the interview. Named technical gates: EX-Q1, specification/implementation owner must verify pinned OpenCode/workflow contracts with non-paid conformance fixtures; EX-Q2, security owner must qualify an admissible bounded provider path and gateway coverage for native orchestrator calls; EX-Q3, infrastructure owner must qualify local distinct-origin preview and measured resource defaults before enabling execution. Failure of a gate returns a concrete design delta for review, never weakens the accepted requirement silently.
+No unresolved product question from the interview (D-001 through D-042). Named technical gates: EX-Q1, specification/implementation owner must verify pinned OpenCode/workflow contracts with non-paid conformance fixtures; EX-Q2, security owner must qualify an admissible bounded provider path and gateway coverage for native orchestrator calls; EX-Q3, infrastructure owner must qualify local distinct-origin preview and measured resource defaults before enabling execution; EX-Q4, infrastructure/security owner must qualify protected static uploads and task-authorized gateway access on the selected Vercel account. Failure of a gate returns a concrete design delta for review, never weakens the accepted requirement silently.
 
 ## Changelog
 
 | Date | Change |
 |---|---|
 | 2026-09-19 | Initial execution specification following accepted two-document split; all behavior is proposed. |
+| 2026-09-19 | D-038..042: registered external website, proposed catalog data, v2 static artifact and private Vercel gateway. |
