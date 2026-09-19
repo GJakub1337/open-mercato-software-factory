@@ -29,7 +29,6 @@ function context() {
     selectedOrganizationId: 'org-id',
     organizationIds: ['org-id'],
     organizationScope: null,
-    transactionalEm: {},
     container: { resolve: () => rbacService },
   } as unknown as CommandRuntimeContext
 }
@@ -51,7 +50,7 @@ beforeEach(() => {
 
 describe('workflow process authority', () => {
   it('accepts only the persisted non-human execution principal and exact correlations', async () => {
-    await expect(requireProcessAuthority(context(), {
+    await expect(requireProcessAuthority(context(), {} as never, {
       taskId: TASK_ID, delegationId: DELEGATION_ID, processInstanceId: PROCESS_ID,
     })).resolves.toMatchObject({ delegation: { id: DELEGATION_ID }, process: { id: PROCESS_ID } })
   })
@@ -64,7 +63,7 @@ describe('workflow process authority', () => {
       if (entity === User) return { id: ACTOR_ID, kind: 'human' }
       return null
     })
-    await expect(requireProcessAuthority(context(), {
+    await expect(requireProcessAuthority(context(), {} as never, {
       taskId: TASK_ID, delegationId: DELEGATION_ID, processInstanceId: PROCESS_ID,
     })).rejects.toMatchObject({ status: 403 })
   })

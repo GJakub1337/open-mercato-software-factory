@@ -13,16 +13,15 @@ The approved local slice reuses the staff board and adds delegation, permissions
 
 | Phase | State | Dependencies | Acceptance | Exit gate |
 |---|---|---|---|---|
-| P0: staff transaction prerequisite | verified locally | none | Atomic task/delegation/audit changes; locked admission; no effects on rollback | Core tests, PostgreSQL rollback/concurrency evidence and review |
+| P0: ordered writes on unpatched staff | done | none | Claim-then-move delegation with compensation; no framework patches | Unit coverage of write order and rollback; ephemeral browser run |
 | P1: delegation commands and process start | in_progress | P0 | Phase 1 cases below | Functional commands and restart/stale-write coverage |
 | P2: API and staff widgets | in_progress | P1 | Phase 2 cases below | Scoped API and board/drawer integration tests |
 
 ### P0 progress
 
 - [x] Baseline application installation and generation: `corepack yarn install --immutable --mode=skip-build`, `corepack yarn generate`, and `corepack yarn typecheck` passed.
-- [x] Source verification: staff 0.8.0 ignores `transactionalEm`; a no-connection MikroORM 7.2.0 probe confirmed a bare fork drops transaction context.
-- [x] Framework prerequisite: Core commit `d04c65202`, 19 isolated PostgreSQL cases, 181 shared tests, 88 selected Core tests, builds/typechecks and independent correctness/security re-review passed.
-- [x] Reproducible local package consumption: committed-format Yarn patches for Core/shared 0.8.0; immutable install, generation, baseline typecheck and installed runtime/hash verifier passed. See `docs/development/staff-transaction-patches.md`.
+- [x] Source verification: staff 0.8.0 ignores `transactionalEm` and commits each command on its own.
+- [x] Dropped the Core/shared Yarn patches (a local Core fork adding managed command transactions). The module runs on the published 0.8.0 packages; see [Write ordering without a shared transaction](#write-ordering-without-a-shared-transaction).
 - [ ] Application delegation commands, guards, APIs and widgets are being implemented. No production workflow run or runtime database migration has been performed.
 
 ### Application verification in progress (2026-09-19)
@@ -33,9 +32,16 @@ The approved local slice reuses the staff board and adds delegation, permissions
 - The first application correctness/security review identified execution-principal binding, undo admission, stale-version checks, delayed start/cancellation, workflow registration and event privacy defects. Corrections and re-review are in progress; passing helper tests are not P1 acceptance.
 - Installed orchestrator limitation: `startExecution` persists a process before queue publication, while a retry deduplicates without re-enqueueing. A crash in that interval can leave a persisted execution unqueued. Automatic crash recovery is blocked pending a framework recovery contract/outbox; it is not covered by the approved Staff correction or by the `starting`/`stalled` presentation. This acceptance item must remain open. Durable cancellation before workflow creation and safe process-start claiming also require orchestrator changes. Workflow activity interpolation currently exposes the workflow instance id, while task commands require the separate process execution id; an orchestrator-owned context contract is still required. The factory process/principal seed, DEMO project seed, real command-transaction integration and full browser acceptance remain incomplete.
 
-### Approved prerequisite (2026-09-19)
+### Write ordering without a shared transaction
 
-The user selected a framework-owned correction before implementing delegation. App interceptors alone cannot make independent staff commits atomic. Staff must support managed transaction composition and publish a scoped mutation service; application code must not import private staff entities or proxy its entity manager. Coupled delegation release must use a fatal transaction hook, rather than the current best-effort `afterExecute`. The implementation of the existing lifecycle below is conditional on this prerequisite. No request-body flag may bypass task guards.
+Staff 0.8.0 commits each of its commands separately, and a Core fork to make them join our transaction was not worth carrying for this feature. Instead every tasks command orders its writes so a failure leaves a state the board can show and a user can clear:
+
+- **Delegate**: validate everything first, then claim the delegation (the active-delegation unique index settles concurrent claims), then move the task to `queued` through staff's command. If the move fails, the claim is deleted. A crash between the two leaves a delegation without a run on a Backlog task; the badge shows it as `stalled` after a minute, and "Remove delegate" clears it.
+- **Undelegate**: move the task back to `backlog` while the delegation still authorizes it, then release. A retry after a failed release finds the task in Backlog and only releases.
+- **Process commands** (`set_status`, `link`, `create_followup`): move the staff task first, then write the delegation change and the step receipt in one flush. A retried step finds the task already moved and only records the outcome. `create_followup` is the exception: a crash before the receipt is written can create a second follow-up on retry.
+- **Assignee closes a delegated task**: the guard's `afterExecute` releases the delegation after staff commits the move. It is best effort; if it fails, the task sits in Done/Closed with a live delegation until "Remove delegate".
+
+Nothing locks staff rows. Stale edits are caught by the optimistic version check staff already applies to status changes. Staff interceptors receive the caller's `auth` object but not the command context, so the single-use column-move authorization is keyed by that object. App code reads staff tasks through the query engine, never staff's private entities. No request-body flag may bypass task guards.
 
 ## TLDR
 
@@ -248,7 +254,7 @@ A refused move returns `409 process_owned` (active delegation) or `409 process_o
 The interceptor's `beforeUndo` refuses undoing a status change on a task with an active
 delegation for all callers, since human undo must not bypass process ownership. Internal process writes use separately validated, single-use transition admission. The assignee's
 `in-review` → `done`/`closed` move exists because the MVP has no PR-merged hook; its
-`beforeCommit` releases the delegation (outcome `done` or `rejected`) in the managed staff transaction. Failure aborts both changes; no request-body flag bypasses the guard.
+`afterExecute` releases the delegation (outcome `done` or `rejected`) once staff has committed the move; see [Write ordering without a shared transaction](#write-ordering-without-a-shared-transaction). No request-body flag bypasses the guard.
 
 **The run state on the card** is derived at read time, never stored. The card-badge widget reads
 it from `GET /api/task_delegation/delegations?taskIds=…`. The injection context carries only ids, so every

@@ -1,11 +1,10 @@
 # Task delegation verification
 
-The task module extends the Staff board. Its local verification requires the Core/shared transaction patches described in [staff-transaction-patches.md](./staff-transaction-patches.md). The application candidate is in progress; a passing helper or API test does not establish complete workflow delivery.
+The task module extends the Staff board and runs on the published Open Mercato 0.8.0 packages. The application candidate is in progress; a passing helper or API test does not establish complete workflow delivery.
 
 Run from this repository with its pinned Yarn:
 
 ```sh
-node scripts/verify-staff-transaction-patches.mjs
 corepack yarn generate
 corepack yarn typecheck
 corepack yarn lint

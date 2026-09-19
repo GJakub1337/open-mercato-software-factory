@@ -1,8 +1,14 @@
-import type { CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
+/**
+ * Hand-off between the tasks commands and the staff command guard. Staff 0.8.0 passes interceptors
+ * the caller's `auth` object (the same reference as `ctx.auth`) but not the command context, so the
+ * registry is keyed by that object: a request's own delegate/undelegate command can authorize the
+ * column move it is about to make, and nobody else sees the authorization.
+ */
+type ColumnKey = object
 
 type ColumnContextState = {
-  createdColumns: WeakMap<CommandRuntimeContext, Map<string, string>>
-  internalTransitions: WeakMap<CommandRuntimeContext, Map<string, string>>
+  createdColumns: WeakMap<ColumnKey, Map<string, string>>
+  internalTransitions: WeakMap<ColumnKey, Map<string, string>>
 }
 
 // The generator inlines this file into more than one bundle (commands and command interceptors),
@@ -13,25 +19,31 @@ const globalState = globalThis as typeof globalThis & { [STATE_KEY]?: ColumnCont
 const state = (globalState[STATE_KEY] ??= { createdColumns: new WeakMap(), internalTransitions: new WeakMap() })
 const { createdColumns, internalTransitions } = state
 
-export function rememberCreatedTaskColumn(ctx: CommandRuntimeContext, id: string, slug: string): void {
-  const columns = createdColumns.get(ctx) ?? new Map<string, string>()
+export function rememberCreatedTaskColumn(key: ColumnKey | null | undefined, id: string, slug: string): void {
+  if (!key) return
+  const columns = createdColumns.get(key) ?? new Map<string, string>()
   columns.set(id, slug)
-  createdColumns.set(ctx, columns)
+  createdColumns.set(key, columns)
 }
 
-export function createdTaskColumnSlug(ctx: CommandRuntimeContext, id: string): string | null {
-  return createdColumns.get(ctx)?.get(id) ?? null
+export function createdTaskColumnSlug(key: ColumnKey | null | undefined, id: string): string | null {
+  return key ? createdColumns.get(key)?.get(id) ?? null : null
 }
 
-export function authorizeInternalTaskTransition(ctx: CommandRuntimeContext, taskId: string, slug: string): void {
-  const transitions = internalTransitions.get(ctx) ?? new Map<string, string>()
+export function authorizeInternalTaskTransition(key: ColumnKey | null | undefined, taskId: string, slug: string): void {
+  if (!key) throw new Error('[internal] Task transition requires an authenticated command context')
+  const transitions = internalTransitions.get(key) ?? new Map<string, string>()
   transitions.set(taskId, slug)
-  internalTransitions.set(ctx, transitions)
+  internalTransitions.set(key, transitions)
 }
 
-export function consumeInternalTaskTransition(ctx: CommandRuntimeContext, taskId: string, slug: string): boolean {
-  const transitions = internalTransitions.get(ctx)
+export function consumeInternalTaskTransition(key: ColumnKey | null | undefined, taskId: string, slug: string): boolean {
+  const transitions = key ? internalTransitions.get(key) : undefined
   if (transitions?.get(taskId) !== slug) return false
   transitions.delete(taskId)
   return true
+}
+
+export function revokeInternalTaskTransition(key: ColumnKey | null | undefined, taskId: string): void {
+  if (key) internalTransitions.get(key)?.delete(taskId)
 }

@@ -7,6 +7,10 @@ import { aiTools } from '../../ai-tools'
 import { createTaskDelegationService } from '../delegationService'
 import { delegateTaskCommand } from '../../commands/tasks'
 
+jest.mock('../taskSnapshot', () => ({
+  readTaskSnapshot: async () => ({ taskId: '30000000-0000-4000-8000-000000000002', timeProjectId: '30000000-0000-4000-8000-000000000001', updatedAt: '2026-09-19T10:00:00Z', childTaskIds: [] }),
+}))
+
 const projectId = '30000000-0000-4000-8000-000000000001'
 const taskId = '30000000-0000-4000-8000-000000000002'
 const agentId = '30000000-0000-4000-8000-000000000003'
@@ -16,7 +20,7 @@ jest.mock('@open-mercato/shared/lib/encryption/find', () => ({
 }))
 
 it('denies expired Staff membership consistently in AI tools, delegation reads and writes', async () => {
-  const em = { persist: jest.fn(), flush: jest.fn() } as unknown as EntityManager
+  const em = { persist: jest.fn(), flush: jest.fn(), fork: () => em } as unknown as EntityManager
   const query = jest.fn(async () => ({ items: [{ id: taskId, time_project_id: projectId, updated_at: '2026-09-19T10:00:00Z' }] }))
   const container = {
     resolve: (name: string) => {
@@ -26,13 +30,12 @@ it('denies expired Staff membership consistently in AI tools, delegation reads a
       if (name === 'timeTrackingAccessResolver') return { resolveProjectAccess: (ctx: ProjectAccessContext) => resolveProjectAccess({ ...ctx, now: new Date('2026-09-19T12:00:00Z') }) }
       if (name === 'queryEngine') return { query }
       if (name === 'taskDelegationService') return createTaskDelegationService({ em })
-      if (name === 'staffTimeTaskMutationService') return { lockTask: async () => ({ taskId, timeProjectId: projectId, updatedAt: '2026-09-19T10:00:00Z', childTaskIds: [] }) }
       throw new Error(`unexpected service ${name}`)
     },
   } as unknown as CommandRuntimeContext['container']
   const ctx: CommandRuntimeContext = {
     container, auth: { sub: 'user-id', tenantId: 'tenant-id', orgId: 'org-id' },
-    selectedOrganizationId: 'org-id', organizationIds: ['org-id'], organizationScope: null, transactionalEm: em,
+    selectedOrganizationId: 'org-id', organizationIds: ['org-id'], organizationScope: null,
   }
   const toolContext: McpToolContext = { container, userId: 'user-id', tenantId: 'tenant-id', organizationId: 'org-id', userFeatures: ['task_delegation.view'], isSuperAdmin: false }
   const staffAccess = await resolveProjectAccess({ em, userId: 'user-id', tenantId: 'tenant-id', organizationId: 'org-id', canManageAll: false, assignmentGraceDays: 0, now: new Date('2026-09-19T12:00:00Z') })

@@ -22,6 +22,7 @@
   "task_delegation.errors.workflowEnded": "Workflow ended before task completion.",
   "task_delegation.errors.projectForbidden": "Task project access is required.",
   "task_delegation.errors.statusMissing": "Required task status is not configured.",
+  "task_delegation.errors.taskNotFound": "Task not found.",
   "task_delegation.errors.processWriteConflict": "This workflow step already wrote the task.",
   "task_delegation.errors.backlogOnly": "Only backlog tasks can be delegated.",
   "task_delegation.errors.assigneeRequired": "A human assignee is required before delegation.",
