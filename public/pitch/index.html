@@ -13,7 +13,7 @@
   Slides with data-backup are Q&A material after the closing slide.
 -->
 <style>
-  /* Look: the fullstack.house "blueprint" idiom (fsh-marketing docs/blueprint.md) —
+  /* Look: the fullstack.house "blueprint" idiom, dark mode (fsh-marketing docs/blueprint.md) —
      warm cream sheet, hairlines instead of shadows, mono numbered tags, one cherry accent.
      Cherry marks the moments where a human decides; pine only for "green check" state. */
   @font-face { font-family: "Instrument Serif"; font-weight: 400; font-display: block;
@@ -42,16 +42,17 @@
     src: url(fonts/ibm-plex-mono-latin-ext-600-normal.woff2) format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF; }
 
   :root {
-    --bg: #F7F4F0;            /* cream */
-    --card: #FDFCFA;
-    --ink: #111110;
-    --muted: #5A5750;
-    --faint: #9B9690;
-    --border: #E0DBD5;
-    --frame: #C7C5C2;
-    --red: #9E1B32;           /* cherry: only where a human decides */
-    --tint: #F6E7EA;
-    --ok: #2F6A4A;            /* pine: green-check state only */
+    /* dark mode of the idiom: the site's "glow band" palette carries the whole deck */
+    --bg: #0E0E0F;
+    --card: #161617;
+    --ink: #F4F4F2;
+    --muted: #A9A9A3;
+    --faint: #6E6E69;
+    --border: #262627;
+    --frame: #3A3A3B;
+    --red: #D0324D;           /* cherry, lifted for a dark ground: only where a human decides */
+    --tint: #2A1218;
+    --ok: #6FCF97;            /* pine, lifted: green-check state only */
     --glow: #0E0E0F;          /* dark band */
     --chalk: #E8E8E6;
     --dim: #888882;
@@ -67,7 +68,11 @@
   #deck { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px;
     transform-origin: center center; }
   .slide { position: absolute; inset: 0; padding: 104px 128px 128px; display: none;
-    flex-direction: column; overflow: hidden; background: var(--bg); }
+    flex-direction: column; overflow: hidden;
+    background:
+      linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px) 0 0 / 48px 48px,
+      linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px) 0 0 / 48px 48px,
+      var(--bg); }
   .slide.active { display: flex; }
   .notes { display: none; }
 
@@ -108,9 +113,17 @@
   .frame::after { bottom: -9px; right: -9px; border-left: 0; border-top: 0; }
 
   /* 1 — title */
-  .title { justify-content: center; }
+  .title h1 { font-size: 156px; }
   .title h1 .line2 { color: var(--red); display: block; }
-  .title .lead { margin-top: 56px; }
+  .title .lead { margin-top: 40px; font-size: 38px; }
+  .team { margin-top: auto; margin-bottom: 36px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px;
+    border-top: 1px solid var(--ink); padding-top: 28px; }
+  .member { display: grid; grid-template-columns: 96px 1fr; grid-template-rows: auto auto; column-gap: 20px; align-items: center; }
+  .member .logo { grid-row: span 2; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center;
+    border: 1px dashed var(--frame); font: 500 16px/1 var(--mono); color: var(--faint); text-transform: uppercase; }
+  .member .logo img { max-width: 100%; max-height: 100%; }
+  .member b { font: 600 28px/1.2 var(--sans); align-self: end; }
+  .member span { font: 500 20px/1.3 var(--mono); color: var(--muted); align-self: start; margin-top: 4px; }
 
   /* 2 — hook */
   .hook { flex-direction: row; gap: 80px; align-items: stretch; }
@@ -130,7 +143,7 @@
   .shot { position: relative; overflow: hidden; border: 1px solid var(--frame); }
   .shot img { display: block; width: 100%; height: 470px; object-fit: cover; object-position: 50% 0; }
   .stamp { position: absolute; font: 600 34px/1 var(--mono); text-transform: uppercase;
-    color: var(--red); border: 3px solid var(--red); padding: 12px 18px 10px;
+    color: #9E1B32; border: 3px solid #9E1B32; padding: 12px 18px 10px;
     background: rgba(253,252,250,.92); transform: rotate(-7deg); letter-spacing: .04em; }
   .stamp small { display: block; font: 500 20px/1.2 var(--mono); letter-spacing: 0; text-transform: none; margin-top: 6px; }
   .pains { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 36px; }
@@ -173,15 +186,17 @@
   .card .n { font: 600 22px/1 var(--mono); color: var(--red); letter-spacing: .06em; margin-bottom: 12px; }
   .card .t { font: 400 52px/1 var(--serif); letter-spacing: -.01em; margin-bottom: 10px; }
   .card .d { font-size: 27px; line-height: 1.38; color: var(--muted); }
-  .card.hot { background: var(--ink); border-color: var(--ink); color: #fff; }
-  .card.hot .d { color: var(--chalk); }
-  .card.hot .n { color: #F2A8B2; }
+  .card.hot { border-color: var(--red); }
+  .card.hot .t { color: #fff; }
   .punch { margin-top: auto; font: 400 76px/1 var(--serif); letter-spacing: -.02em; }
   .punch .dim { color: var(--faint); }
 
   /* 6 — close: the dark band */
   .close { justify-content: center; color: #F4F4F2;
-    background: radial-gradient(1200px 800px at 80% 20%, #1E1E1F 0%, var(--glow) 65%); }
+    background:
+      linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px) 0 0 / 48px 48px,
+      linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px) 0 0 / 48px 48px,
+      radial-gradient(1200px 800px at 80% 20%, #2A1218 0%, var(--glow) 65%); }
   .close::before { border-color: rgba(255,255,255,.12); }
   .close .kicker { color: var(--dim); }
   .close .foot { color: var(--dim); }
@@ -199,10 +214,7 @@
   .col ul { list-style: none; }
   .col li { font-size: 28px; line-height: 1.32; color: var(--muted); padding: 14px 0; border-top: 1px solid var(--border); }
   .col li b { color: var(--ink); font-weight: 600; }
-  .col.core { background: var(--ink); border-color: var(--ink); color: #fff; }
-  .col.core .sub { color: #F2A8B2; }
-  .col.core li { color: var(--chalk); border-top-color: rgba(255,255,255,.14); }
-  .col.core li b { color: #fff; }
+  .col.core { border-color: var(--red); background: #1C1C1D; }
   .invariant { margin-top: 36px; font-size: 34px; line-height: 1.35; padding: 26px 32px; border-left: 4px solid var(--red); background: var(--tint); margin-bottom: 24px; }
   table.cmp { width: 100%; border-collapse: collapse; border-top: 1px solid var(--ink); }
   table.cmp th, table.cmp td { text-align: left; padding: 26px 24px; border-bottom: 1px solid var(--border); font-size: 32px; line-height: 1.3; vertical-align: top; }
@@ -262,6 +274,12 @@
     <div class="kicker">Open Mercato HackOn · Fabryka oprogramowania</div>
     <h1>Marek nie ma programisty.<span class="line2">Ma Open Mercato.</span></h1>
     <p class="lead">Zmiana w firmie staje się zadaniem, agent robi z niego zmianę na stronie, a&nbsp;człowiek ją zatwierdza jednym kliknięciem.</p>
+    <div class="team">
+      <div class="member"><div class="logo">logo</div><b>Jacek Tomaszewski</b><span>fullstack.house</span></div>
+      <div class="member"><div class="logo">logo</div><b>Imię Nazwisko</b><span>Firma</span></div>
+      <div class="member"><div class="logo">logo</div><b>Imię Nazwisko</b><span>Firma</span></div>
+      <div class="member"><div class="logo">logo</div><b>Imię Nazwisko</b><span>Firma</span></div>
+    </div>
     <aside class="notes">
       <p><em>0:00–0:05 · Nie czytamy slajdu. Od razu przechodzimy do Marka.</em></p>
       <p>„Opowiemy wam o jednej firmie i o jednym człowieku.”</p>
