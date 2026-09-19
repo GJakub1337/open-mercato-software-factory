@@ -94,16 +94,6 @@ export class GitHubClient {
     return commit.tree.sha
   }
 
-  async getFileText(path: string, ref: string): Promise<string> {
-    const file = await this.request<{ content: string; encoding: string }>(
-      'GET',
-      this.repoPath(`/contents/${path}?ref=${encodeURIComponent(ref)}`),
-    )
-    if (!file) throw new Error(`${path} not found at ${ref}`)
-    if (file.encoding !== 'base64') throw new Error(`${path}: unexpected encoding ${file.encoding}`)
-    return Buffer.from(file.content, 'base64').toString('utf8')
-  }
-
   /** One commit with every file, on top of `parentSha`. Returns the new commit sha. */
   async createCommit(params: { parentSha: string; files: CommitFile[]; message: string }): Promise<string> {
     const baseTree = await this.getCommitTreeSha(params.parentSha)

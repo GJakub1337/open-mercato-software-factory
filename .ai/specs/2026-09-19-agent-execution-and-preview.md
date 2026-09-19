@@ -354,11 +354,11 @@ Deliberate gaps, all acceptable only on the presenter's laptop:
 - no transcript view beyond the host log;
 - the agent identity stays `factory` until the D-047 rename lands.
 
-Configuration: `FACTORY_RUNNER=container` (the default is the deterministic page generator, kept as the offline fallback), `FACTORY_RUNNER_IMAGE`, `FACTORY_RUNNER_MODEL` (default `anthropic/claude-sonnet-4-5`, or `openrouter/anthropic/claude-sonnet-4.5` when only an OpenRouter key is set), `FACTORY_RUNNER_TIMEOUT_MS`, and a model key in the host environment passed only to the container.
+The agent is the only effector: the deterministic page generator the first slice used is removed. Configuration: `FACTORY_RUNNER_IMAGE`, `FACTORY_RUNNER_MODEL` (default `anthropic/claude-sonnet-4-5`, or `openrouter/anthropic/claude-sonnet-4.5` when only an OpenRouter key is set), `FACTORY_RUNNER_TIMEOUT_MS`, and a model key in the host environment passed only to the container.
 
 Acceptance:
 
-- A product added in „Od ręki” produces a DEMO task whose PR was written by the agent, not the generator.
+- A product added in „Od ręki” produces a DEMO task whose PR was written by the agent.
 - `site` is green on that PR, and the drawer shows the diff and preview.
 - Approve merges and closes the task.
 - A timeout, an empty change or an edit to `.github/**` closes the task as failed with that reason.
@@ -483,3 +483,4 @@ No unresolved product question from the interview (D-001 through D-042). Named t
 | 2026-09-19 | D-038..042: registered external website, proposed catalog data, v2 static artifact and private Vercel gateway. |
 | 2026-09-19 | D-043..047: self-instance target superseded (agent never edits OM); targets come from the OM repository registry and project links ([code repositories](2026-09-19-code-repositories.md)); `/api/tasks/targets` replaced by `/api/repositories/for-project`; enrollment replaced by OM features; agent renamed Developer. |
 | 2026-09-19 | EX-P0 demo slice accepted: disposable `node:22` + pinned OpenCode container per run for the registered website, host-side clone/publish, diff panel over the PR; gaps against EX-P1..P5 listed. |
+| 2026-09-19 | EX-P0: the Developer agent is the only effector; the deterministic product-page generator is removed. First real run: 144 s, USD 0.25, `site` green. |

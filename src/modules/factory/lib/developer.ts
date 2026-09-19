@@ -1,4 +1,4 @@
-import type { CatalogRecordView } from './productPage'
+import type { CatalogRecordView } from './catalogRecord'
 import type { GitHubClient } from './github'
 import { runDeveloperAgent, type RunnerConfig, type RunnerResult } from './runner'
 

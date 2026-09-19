@@ -10,9 +10,8 @@ jest.mock('@open-mercato/core/modules/workflows/lib/definition-grant', () => ({ 
 // The real request container pulls in the ESM-only DB driver; the deliver deps inject one instead.
 jest.mock('@open-mercato/shared/lib/di/container', () => ({ createRequestContainer: jest.fn() }))
 
-import { createDeliverFunction, DELIVER_FUNCTION, withTransientRetry } from '../lib/deliver'
+import { createDeliverFunction, DELIVER_FUNCTION } from '../lib/deliver'
 import { productTaskDescription } from '../lib/board'
-import { GitHubApiError } from '../lib/github'
 
 const scope = { tenantId: 'tenant-1', organizationId: 'org-1' }
 const productId = 'aaaaaaaa-0000-4000-8000-000000000003'
@@ -76,14 +75,4 @@ it('passes a task without a product link on, and closes the task with the reason
     ['task_delegation.task.set_status', 'failed'],
   ])
   expect(execute.mock.calls[1]![1].input.reason).toContain('without changing any file')
-})
-
-it('retries transient GitHub errors only', async () => {
-  const work = jest.fn<() => Promise<string>>()
-    .mockRejectedValueOnce(new GitHubApiError(502, '/pulls', 'Bad gateway'))
-    .mockResolvedValueOnce('ok')
-  await expect(withTransientRetry(work, 3, 1)).resolves.toBe('ok')
-  const refused = jest.fn<() => Promise<string>>().mockRejectedValue(new GitHubApiError(422, '/pulls', 'Validation failed'))
-  await expect(withTransientRetry(refused, 3, 1)).rejects.toThrow('GitHub 422')
-  expect(refused).toHaveBeenCalledTimes(1)
 })

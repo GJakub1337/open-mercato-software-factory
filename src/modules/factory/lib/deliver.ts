@@ -14,8 +14,7 @@ import type { ActivityContext } from '@open-mercato/core/modules/workflows/lib/a
 import { ProcessDefinition, ProcessInstance } from '@open-mercato/enterprise/modules/agent_orchestrator/data/entities'
 import type { Scope } from './catalogRecord'
 import { actingContext, readProductIdFromTask } from './board'
-import { GitHubApiError, GitHubClient, readGitHubConfigFromEnv } from './github'
-import { publishProductPage } from './publishProduct'
+import { GitHubClient, readGitHubConfigFromEnv } from './github'
 import { loadCatalogRecordView } from './catalogRecord'
 import { deliverWithDeveloper, type DeliveredPr, type DeveloperTask } from './developer'
 import { readRunnerConfigFromEnv } from './runner'
@@ -42,8 +41,8 @@ export const DELIVER_GRANTED_FEATURES = ['task_delegation.view', 'task_delegatio
  */
 const deliverProduct = defineWorkflow({
   workflowId: DELIVER_WORKFLOW_ID,
-  workflowName: 'Factory: deliver product page',
-  description: 'Opens the website PR for the product linked from a delegated board task.',
+  workflowName: 'Factory: deliver website change',
+  description: 'The Developer agent changes the website for a delegated board task and opens the PR.',
   metadata: { category: 'Factory', tags: ['factory', 'catalog', 'website', 'tasks'], icon: 'globe' },
   steps: [
     { stepId: 'start', stepName: 'Task delegated', stepType: 'START', description: 'Input: { taskId, delegationId }.' },
@@ -73,8 +72,8 @@ const deliverProduct = defineWorkflow({
         activityType: 'EXECUTE_FUNCTION',
         config: { functionName: DELIVER_FUNCTION, args: {} },
         async: true,
-        // One engine attempt: the function retries transient GitHub errors itself and closes the
-        // task as failed on a final error (the 0.8.0 engine emits no workflows.instance.failed when
+        // One engine attempt: a retry would run the agent again, and the function already closes
+        // the task as failed on an error (the 0.8.0 engine emits no workflows.instance.failed when
         // an async activity fails, so nothing else would release the task).
         retryPolicy: { maxAttempts: 1, initialIntervalMs: 5000, backoffCoefficient: 2, maxIntervalMs: 30000 },
       }],
@@ -168,24 +167,21 @@ export type DeliverDeps = {
 }
 
 /**
- * `FACTORY_RUNNER=container`: the Developer agent in its disposable container (execution spec
- * EX-P0), for any task. Otherwise the deterministic product-page generator, which needs a linked
- * product and is kept as the offline fallback for the demo.
+ * The Developer agent in its disposable container (execution spec EX-P0), for any task; the
+ * linked product's catalog record, when there is one, goes into its prompt.
  */
-export async function produceChangeFromEnv(em: EntityManager, scope: Scope, task: DeveloperTask, productId: string | null): Promise<DeliveredPr> {
-  const github = new GitHubClient(readGitHubConfigFromEnv())
-  const appUrl = process.env.APP_URL ?? null
-  if (process.env.FACTORY_RUNNER === 'container') {
-    const record = productId ? await loadCatalogRecordView(em, scope, productId) : null
-    return deliverWithDeveloper({ github, config: readRunnerConfigFromEnv(), appUrl }, task, record)
-  }
-  if (!productId) throw new Error(`${DELIVER_FUNCTION}: task ${task.id} does not link a catalog product`)
-  return withTransientRetry(() => publishProductPage({ em, github, appUrl }, scope, productId))
+export async function produceChangeWithAgent(em: EntityManager, scope: Scope, task: DeveloperTask, productId: string | null): Promise<DeliveredPr> {
+  const record = productId ? await loadCatalogRecordView(em, scope, productId) : null
+  return deliverWithDeveloper({
+    github: new GitHubClient(readGitHubConfigFromEnv()),
+    config: readRunnerConfigFromEnv(),
+    appUrl: process.env.APP_URL ?? null,
+  }, task, record)
 }
 
 const defaultDeps: DeliverDeps = {
   resolveContainer: () => createRequestContainer(),
-  produceChange: produceChangeFromEnv,
+  produceChange: produceChangeWithAgent,
 }
 
 /**
@@ -242,19 +238,6 @@ export function createDeliverFunction(deps: DeliverDeps = defaultDeps) {
           taskId, error: closeError instanceof Error ? closeError.message : String(closeError),
         }))
       throw error
-    }
-  }
-}
-
-/** Retries GitHub 5xx/429 and network errors for the generator; its PR is idempotent per product branch. */
-export async function withTransientRetry<T>(work: () => Promise<T>, attempts = 3, delayMs = 3000): Promise<T> {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      return await work()
-    } catch (error) {
-      const transient = error instanceof GitHubApiError ? error.status >= 500 || error.status === 429 : error instanceof TypeError
-      if (!transient || attempt >= attempts) throw error
-      await new Promise((resolve) => setTimeout(resolve, delayMs * attempt))
     }
   }
 }
