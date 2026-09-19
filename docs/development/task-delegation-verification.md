@@ -28,6 +28,16 @@ The application authentication smoke test uses the repository's isolated runner:
 corepack yarn test:integration:ephemeral TC-TASK-DELEGATION-001 --no-reuse-env
 ```
 
+`TC-TASK-DELEGATION-002` covers the same unauthenticated posture for the assignment endpoints
+(`POST /api/task_delegation/assignments`, `GET /api/task_delegation/assignable-people`).
+`TC-TASK-DELEGATION-003` opens a task drawer in a browser and asserts that the "Assigned to"
+picker is the only assignment control — `staff`'s own assignee field is hidden and unfocusable. It
+needs one staff task to open and skips with that reason on an empty database; seed the demo board
+with `corepack yarn mercato task_delegation seed-demo` first. The runner starts a production
+server, so `JWT_SECRET` must be a real value (`openssl rand -hex 32`) rather than the placeholder
+shipped in `.env.example`; with the placeholder the server refuses to boot and the run fails
+before any test.
+
 The runner owns the disposable database, initialization, application build, port, and cleanup. Do not run plain `test:integration` with only `BASE_URL`; database fixtures require the complete runner-provided environment. This smoke test exercises unauthenticated requests to all four tasks endpoint methods. Authenticated delegation, Staff transitions, workflow activities, real undo and browser interaction still require their own acceptance tests.
 
 ## Agent rename (SPEC-008)

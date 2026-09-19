@@ -4,13 +4,14 @@ import { registerCommand, extractUndoPayload, type CommandBus, type CommandHandl
 import { CrudHttpError, isUniqueViolation } from '@open-mercato/shared/lib/crud/errors'
 import { enforceCommandOptimisticLock } from '@open-mercato/shared/lib/crud/optimistic-lock-command'
 import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
+import { createLogger } from '@open-mercato/shared/lib/logger'
 import { findOneWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import type { QueryEngine } from '@open-mercato/shared/lib/query/types'
 import type { TimeTrackingAccessResolver } from '@open-mercato/core/modules/staff/di'
 import { User } from '@open-mercato/core/modules/auth/data/entities'
 import { AgentPrincipal, ProcessDefinition, ProcessInstance } from '@open-mercato/enterprise/modules/agent_orchestrator/data/entities'
 import { TaskDelegation, TaskProcessWrite, type TaskDelegationLinkKind } from '../data/entities'
-import { delegateSchema, undelegateSchema } from '../data/validators'
+import { assignSchema, delegateSchema, undelegateSchema } from '../data/validators'
 import { emitTaskDelegationEvent } from '../events'
 import { requireFeature, readTaskAssignmentGraceDays, type TaskScope } from '../lib/auth'
 import { hasReachedMilestone, isAllowedProcessTransition, mapProcessStatus, type DelegationOutcome, type ProcessTaskStatus } from '../lib/transitionPolicy'
@@ -18,6 +19,8 @@ import { authorizeInternalTaskTransition, revokeInternalTaskTransition } from '.
 import { requireProcessAuthority } from '../lib/processAuthority'
 import { readTaskSnapshot } from '../lib/taskSnapshot'
 import type {
+  AssignTaskInput,
+  AssignTaskResult,
   CreateFollowupInput,
   CreateFollowupResult,
   DelegateTaskInput,
@@ -30,6 +33,7 @@ import type {
   UndelegateTaskResult,
 } from './types'
 
+const logger = createLogger('task_delegation').child({ component: 'task-commands' })
 const UUID = z.string().uuid()
 const processIdentitySchema = z.object({ delegationId: UUID, processInstanceId: UUID, stepId: z.string().min(1).max(100) })
 const setStatusSchema = processIdentitySchema.extend({ taskId: UUID, status: z.enum(['open', 'queued', 'in_design', 'in_progress', 'in_review', 'done', 'rejected', 'failed']), reason: z.string().max(8000).optional() })
@@ -53,8 +57,8 @@ async function taskError(status: number, code: string, key: string, fallback: st
   return new CrudHttpError(status, { code, error: translate(key, fallback), ...body })
 }
 
-async function requireProjectAccess(ctx: CommandRuntimeContext, em: EntityManager, projectId: string): Promise<void> {
-  const scope = await requireFeature(ctx, 'task_delegation.delegate')
+async function requireProjectAccess(ctx: CommandRuntimeContext, em: EntityManager, projectId: string, feature: 'task_delegation.view' | 'task_delegation.delegate' = 'task_delegation.delegate'): Promise<void> {
+  const scope = await requireFeature(ctx, feature)
   const resolver = ctx.container.resolve<TimeTrackingAccessResolver>('timeTrackingAccessResolver')
   const canManageAll = await ctx.container.resolve<{ userHasAllFeatures(id: string, features: string[], scope: { tenantId: string; organizationId: string }): Promise<boolean> }>('rbacService')
     .userHasAllFeatures(scope.userId, ['staff.timesheets.projects.manage'], scope)
@@ -286,6 +290,130 @@ const undelegateTaskCommand: CommandHandler<UndelegateTaskInput, UndelegateTaskR
   },
 }
 
+type AssignUndoPayload = {
+  taskId: string
+  previousAssigneeStaffMemberId: string | null
+  assigneeChanged: boolean
+  delegationId: string | null
+}
+
+async function updateAssignee(ctx: CommandRuntimeContext, taskId: string, assigneeStaffMemberId: string | null, expectedUpdatedAt: string): Promise<void> {
+  await withExpectedVersion(ctx, expectedUpdatedAt, () => ctx.container.resolve<CommandBus>('commandBus')
+    .execute('staff.timesheets.tasks.update', { input: { id: taskId, assigneeStaffMemberId }, ctx }))
+}
+
+/**
+ * "Assign" is one act to the person doing it, so it is one command, one audit entry and one undo —
+ * but not one transaction: staff 0.8.0 commits its own task update on its own. The halves are
+ * ordered (person first, so the delegation it may need is already satisfied) and a failing
+ * delegation compensates the assignee back to what it was.
+ */
+const assignTaskCommand: CommandHandler<AssignTaskInput, AssignTaskResult> = {
+  id: 'task_delegation.task.assign',
+  isUndoable: true,
+  async execute(rawInput, ctx) {
+    const input = assignSchema.parse(rawInput)
+    const scope = await requireFeature(ctx, 'task_delegation.view')
+    const em = forkEm(ctx)
+    const queryEngine = ctx.container.resolve<QueryEngine>('queryEngine')
+    const snapshot = await readTaskSnapshot(queryEngine, scope, { taskId: input.taskId })
+    const wantsAgent = typeof input.agentUserId === 'string'
+    await requireProjectAccess(ctx, em, snapshot.timeProjectId, wantsAgent ? 'task_delegation.delegate' : 'task_delegation.view')
+    enforceCommandOptimisticLock({
+      resourceKind: 'staff.timesheets.time_task',
+      resourceId: snapshot.taskId,
+      current: snapshot.updatedAt,
+      request: ctx.request,
+    })
+    const previousAssigneeStaffMemberId = snapshot.assigneeStaffMemberId
+    const clearsAssignee = input.assigneeStaffMemberId === null
+    if (clearsAssignee && wantsAgent) {
+      throw await taskError(422, 'assignee_required', 'task_delegation.errors.assigneeRequired', 'A human assignee is required before delegation.')
+    }
+    let assigneeStaffMemberId = previousAssigneeStaffMemberId
+    let assigneeChanged = false
+    if (input.assigneeStaffMemberId !== undefined && input.assigneeStaffMemberId !== previousAssigneeStaffMemberId) {
+      await updateAssignee(ctx, snapshot.taskId, input.assigneeStaffMemberId, snapshot.updatedAt)
+      assigneeStaffMemberId = input.assigneeStaffMemberId
+      assigneeChanged = true
+    }
+    let delegation: { id: string } | null = null
+    if (wantsAgent) {
+      const beforeDelegation = await readTaskSnapshot(queryEngine, scope, { taskId: snapshot.taskId })
+      try {
+        const delegated = await withExpectedVersion(ctx, beforeDelegation.updatedAt, async () => delegateTaskCommand.execute({
+          taskId: snapshot.taskId, agentUserId: input.agentUserId as string,
+        }, ctx))
+        delegation = { id: delegated.delegationId }
+      } catch (error) {
+        if (assigneeChanged) {
+          try {
+            const current = await readTaskSnapshot(queryEngine, scope, { taskId: snapshot.taskId })
+            await updateAssignee(ctx, snapshot.taskId, previousAssigneeStaffMemberId, current.updatedAt)
+          } catch (compensation) {
+            // What the caller asked about is why the delegation failed; a compensation that fails
+            // too leaves the new assignee in place and is logged rather than thrown over it.
+            logger.error('assignee compensation failed', {
+              taskId: snapshot.taskId,
+              organizationId: scope.organizationId,
+              error: compensation instanceof Error ? compensation.message : String(compensation),
+            })
+          }
+        }
+        throw error
+      }
+      // Delegating with no human assignee records the actor as the accountable owner.
+      const settled = await readTaskSnapshot(queryEngine, scope, { taskId: snapshot.taskId })
+      assigneeStaffMemberId = settled.assigneeStaffMemberId
+    }
+    if (assigneeChanged && !wantsAgent) {
+      await emitTaskDelegationEvent('task_delegation.task.changed', {
+        taskId: snapshot.taskId, tenantId: scope.tenantId, organizationId: scope.organizationId,
+      }, { persistent: true, tenantId: scope.tenantId, organizationId: scope.organizationId })
+    }
+    return { taskId: snapshot.taskId, assigneeStaffMemberId, delegation, previousAssigneeStaffMemberId, assigneeChanged }
+  },
+  async buildLog({ result, ctx }) {
+    const { translate } = await resolveTranslations()
+    return {
+      actionLabel: translate('task_delegation.audit.assign', 'Assign task'),
+      resourceKind: 'staff.timesheets.task',
+      resourceId: result.taskId,
+      tenantId: ctx.auth?.tenantId,
+      organizationId: ctx.selectedOrganizationId ?? ctx.auth?.orgId,
+      context: { assigneeStaffMemberId: result.assigneeStaffMemberId, delegationId: result.delegation?.id ?? null },
+      payload: {
+        undo: {
+          taskId: result.taskId,
+          previousAssigneeStaffMemberId: result.previousAssigneeStaffMemberId,
+          assigneeChanged: result.assigneeChanged,
+          delegationId: result.delegation?.id ?? null,
+        } satisfies AssignUndoPayload,
+      },
+    }
+  },
+  async undo({ ctx, logEntry }) {
+    const payload = extractUndoPayload<AssignUndoPayload>(logEntry)
+    if (!payload) return
+    const scope = await requireFeature(ctx, 'task_delegation.view')
+    if (payload.delegationId) {
+      const active = await forkEm(ctx).findOne(TaskDelegation, {
+        tenantId: scope.tenantId, organizationId: scope.organizationId, taskId: payload.taskId, releasedAt: null,
+      })
+      // Refuses after the sizing decision, which is what keeps undo honest mid-run.
+      if (active?.id === payload.delegationId) await undelegateTaskCommand.execute({ taskId: payload.taskId }, ctx)
+    }
+    if (payload.assigneeChanged) {
+      const current = await readTaskSnapshot(ctx.container.resolve<QueryEngine>('queryEngine'), scope, { taskId: payload.taskId })
+      await updateAssignee(ctx, payload.taskId, payload.previousAssigneeStaffMemberId, current.updatedAt)
+      // Symmetry with execute: the surfaces that refreshed when the owner changed refresh again.
+      await emitTaskDelegationEvent('task_delegation.task.changed', {
+        taskId: payload.taskId, tenantId: scope.tenantId, organizationId: scope.organizationId,
+      }, { persistent: true, tenantId: scope.tenantId, organizationId: scope.organizationId })
+    }
+  },
+}
+
 const setStatusCommand: CommandHandler<SetTaskStatusInput, SetTaskStatusResult> = {
   id: 'task_delegation.task.set_status',
   async execute(rawInput, ctx) {
@@ -387,10 +515,11 @@ const createFollowupCommand: CommandHandler<CreateFollowupInput, CreateFollowupR
   },
 }
 
+registerCommand(assignTaskCommand)
 registerCommand(delegateTaskCommand)
 registerCommand(undelegateTaskCommand)
 registerCommand(setStatusCommand)
 registerCommand(linkTaskCommand)
 registerCommand(createFollowupCommand)
 
-export { delegateTaskCommand, undelegateTaskCommand, setStatusCommand, linkTaskCommand, createFollowupCommand }
+export { assignTaskCommand, delegateTaskCommand, undelegateTaskCommand, setStatusCommand, linkTaskCommand, createFollowupCommand }
