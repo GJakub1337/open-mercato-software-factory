@@ -1,7 +1,17 @@
 import type { CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
 
-const createdColumns = new WeakMap<CommandRuntimeContext, Map<string, string>>()
-const internalTransitions = new WeakMap<CommandRuntimeContext, Map<string, string>>()
+type ColumnContextState = {
+  createdColumns: WeakMap<CommandRuntimeContext, Map<string, string>>
+  internalTransitions: WeakMap<CommandRuntimeContext, Map<string, string>>
+}
+
+// The generator inlines this file into more than one bundle (commands and command interceptors),
+// so module-level maps would be separate copies: the guard would never see what the delegate
+// command authorized. Keep one registry per process instead.
+const STATE_KEY = Symbol.for('open-mercato.tasks.column-context')
+const globalState = globalThis as typeof globalThis & { [STATE_KEY]?: ColumnContextState }
+const state = (globalState[STATE_KEY] ??= { createdColumns: new WeakMap(), internalTransitions: new WeakMap() })
+const { createdColumns, internalTransitions } = state
 
 export function rememberCreatedTaskColumn(ctx: CommandRuntimeContext, id: string, slug: string): void {
   const columns = createdColumns.get(ctx) ?? new Map<string, string>()

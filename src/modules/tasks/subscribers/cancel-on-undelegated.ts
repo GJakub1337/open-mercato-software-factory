@@ -3,6 +3,7 @@ import type { EntityManager } from '@mikro-orm/postgresql'
 import { findOneWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import { WorkflowInstance } from '@open-mercato/core/modules/workflows/data/entities'
 import { ProcessInstance } from '@open-mercato/enterprise/modules/agent_orchestrator/data/entities'
+import { canResolve } from '../lib/subscriberServices'
 
 export const metadata = {
   event: 'tasks.task.undelegated',
@@ -36,7 +37,7 @@ export default async function cancelOnUndelegated(
 ): Promise<void> {
   const { processInstanceId, tenantId, organizationId } = payload
   if (!processInstanceId || !tenantId || !organizationId) return
-  if (!context.hasRegistration?.('ProcessInstance') || !context.hasRegistration?.('workflowExecutor')) return
+  if (!canResolve(context, 'ProcessInstance') || !canResolve(context, 'workflowExecutor')) return
   const em = context.resolve<EntityManager>('em').fork()
   const scope = { tenantId, organizationId }
   const process = await findOneWithDecryption(em, ProcessInstance, {

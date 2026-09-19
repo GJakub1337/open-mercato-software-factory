@@ -6,6 +6,7 @@ import {
 } from '@open-mercato/core/modules/workflows/lib/workflow-command-settings'
 import { listWorkflowSafeCommands } from '@open-mercato/core/modules/workflows/lib/workflow-safe-commands'
 import { TASKS_WORKFLOW_COMMAND_IDS } from './workflows'
+import { seedTasksDemo } from './lib/demoSetup'
 
 export const setup: ModuleSetupConfig = {
   defaultRoleFeatures: {
@@ -22,6 +23,9 @@ export const setup: ModuleSetupConfig = {
       .filter((command) => command.defaultEnabled === true)
       .map((command) => command.commandId)
     await writeEnabledWorkflowCommandIds(config, tenantId, [...new Set([...baseline, ...TASKS_WORKFLOW_COMMAND_IDS])])
+  },
+  seedExamples: async ({ container, tenantId, organizationId }) => {
+    await seedTasksDemo(container, { tenantId, organizationId })
   },
 }
 

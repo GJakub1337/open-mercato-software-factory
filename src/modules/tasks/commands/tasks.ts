@@ -14,7 +14,7 @@ import { TaskDelegation, TaskProcessWrite, type TaskDelegationLinkKind } from '.
 import { delegateSchema, undelegateSchema } from '../data/validators'
 import { emitTasksEvent } from '../events'
 import { requireFeature, readTaskAssignmentGraceDays } from '../lib/auth'
-import { isAllowedProcessTransition, mapProcessStatus, type DelegationOutcome, type ProcessTaskStatus } from '../lib/transitionPolicy'
+import { hasReachedMilestone, isAllowedProcessTransition, mapProcessStatus, type DelegationOutcome, type ProcessTaskStatus } from '../lib/transitionPolicy'
 import { authorizeInternalTaskTransition, rememberCreatedTaskColumn } from '../lib/columnContext'
 import { requireProcessAuthority } from '../lib/processAuthority'
 import type {
@@ -29,6 +29,7 @@ import type {
   UndelegateTaskInput,
   UndelegateTaskResult,
 } from './types'
+import { FACTORY_COLUMNS } from '../lib/factoryColumns'
 
 const UUID = z.string().uuid()
 const processIdentitySchema = z.object({ delegationId: UUID, processInstanceId: UUID, stepId: z.string().min(1).max(100) })
@@ -65,11 +66,6 @@ async function requireProjectAccess(ctx: CommandRuntimeContext, projectId: strin
   }
 }
 
-const FACTORY_COLUMNS = [
-  { slug: 'queued', name: 'Queued', isDone: false, position: 100 },
-  { slug: 'in-design', name: 'In design', isDone: false, position: 200 },
-  { slug: 'closed', name: 'Closed', isDone: true, position: 600 },
-] as const
 
 async function ensureFactoryColumns(ctx: CommandRuntimeContext, projectId: string, feature: 'tasks.delegate' | 'tasks.process'): Promise<Map<string, string>> {
   const scope = await requireFeature(ctx, feature)
@@ -278,7 +274,7 @@ const undelegateTaskCommand: CommandHandler<UndelegateTaskInput, UndelegateTaskR
         && ctx.container.hasRegistration('ProcessInstance')
       if (!hasProcessInstances) throw await taskError(503, 'orchestrator_unavailable', 'tasks.errors.orchestratorUnavailable', 'The factory orchestrator is unavailable.')
       const process = await findOneWithDecryption(em, ProcessInstance, { id: delegation.processInstanceId, tenantId: scope.tenantId, organizationId: scope.organizationId, deletedAt: null }, {}, { tenantId: scope.tenantId, organizationId: scope.organizationId })
-      if (process?.milestonesReached?.some((milestone) => milestone.key === 'sized')) {
+      if (process && hasReachedMilestone(process.milestonesReached, 'sized')) {
         throw await taskError(409, 'decision_pending', 'tasks.errors.decisionPending', 'The task has reached the sizing decision.', { processInstanceId: process.id })
       }
     }

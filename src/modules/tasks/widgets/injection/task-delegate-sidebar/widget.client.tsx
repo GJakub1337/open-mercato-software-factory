@@ -10,6 +10,8 @@ import { StatusBadge } from '@open-mercato/ui/primitives/status-badge'
 import { apiCallOrThrow, readApiResultOrThrow, withScopedApiRequestHeaders } from '@open-mercato/ui/backend/utils/apiCall'
 import { buildOptimisticLockHeader } from '@open-mercato/ui/backend/utils/optimisticLock'
 import { useGuardedMutation } from '@open-mercato/ui/backend/injection/useGuardedMutation'
+import { APP_EVENT_DOM_NAME } from '@open-mercato/ui/backend/injection/useAppEvent'
+import type { AppEventPayload } from '@open-mercato/shared/modules/widgets/injection'
 import type { TasksAgentDto } from '../../../lib/delegationService'
 import { useTaskDelegation } from '../../use-task-delegation'
 
@@ -59,6 +61,14 @@ export default function TaskDelegateSidebar({ context }: { context?: { taskId?: 
         )),
       })
       refresh()
+      // Delegation moves the card between columns server-side. The staff board refetches on its
+      // status-changed app event, so announce the move locally instead of waiting for the SSE echo.
+      window.dispatchEvent(new CustomEvent<AppEventPayload>(APP_EVENT_DOM_NAME, { detail: {
+        id: 'staff.timesheets.time_task.status_changed',
+        payload: { taskId: item.taskId },
+        timestamp: Date.now(),
+        organizationId: payload?.currentOrganization?.id ?? '',
+      } }))
     } catch (failure) {
       setMutationError(failure instanceof Error ? failure.message : t('tasks.errors.mutation'))
     } finally { setSaving(false) }

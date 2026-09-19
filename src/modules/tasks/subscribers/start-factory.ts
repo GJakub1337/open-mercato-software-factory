@@ -4,6 +4,7 @@ import { findOneWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import { AgentPrincipal, ProcessDefinition } from '@open-mercato/enterprise/modules/agent_orchestrator/data/entities'
 import { TaskDelegation } from '../data/entities'
 import { emitTasksEvent } from '../events'
+import { canResolve } from '../lib/subscriberServices'
 
 export const metadata = {
   event: 'tasks.task.delegated',
@@ -32,7 +33,7 @@ export default async function startFactory(payload: TaskDelegatedPayload, contex
   if (!taskId || !delegationId || !delegatedBy || !delegateUserId || !tenantId || !organizationId) {
     throw new Error('[internal] Scoped task delegation payload required')
   }
-  if (!context.hasRegistration?.('ProcessDefinition') || !context.hasRegistration?.('AgentPrincipal')) {
+  if (!canResolve(context, 'ProcessDefinition') || !canResolve(context, 'AgentPrincipal')) {
     throw new Error('[internal] factory orchestrator is unavailable')
   }
   const em = context.resolve<EntityManager>('em').fork()
