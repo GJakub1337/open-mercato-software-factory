@@ -26,12 +26,12 @@ się na żywo; uruchomienia kodujące startują przed pitchem, a na scenie pokaz
 | Scena | Forma | Zbudowane | Brakuje | Kto |
 |---|---|---|---|---|
 | 1. Hook | slajd | — | slajd | demo owner |
-| 2. Poprawa rekordu | na żywo | katalog demo z błędnym `ZDP-5000` (`demo_fixtures`); tablica DEMO z delegowaniem do Factory (moduł `tasks`) | chat intake (SPEC-002), zmiany `record` w Caseload (SPEC-003) | tasks owner |
+| 2. Poprawa rekordu | na żywo | katalog demo z błędnym `ZDP-5000` (`demo_fixtures`); tablica DEMO z delegowaniem do Factory (moduł `task_delegation`) | chat intake (SPEC-002), zmiany `record` w Caseload (SPEC-003) | tasks owner |
 | 3. Katalog → strona | na żywo, uruchomienie przed pitchem | strona z produktami i „Od ręki” w repo landing; moduł `factory`: produkt w „Od ręki” → zadanie na tablicy DEMO delegowane do Factory → `factory.deliver` otwiera PR ze stroną, podpina go do zadania i przesuwa je do „In review” → „Zatwierdź i opublikuj” w szufladzie merguje PR i zamyka zadanie jako Done | próba na prawdziwym repo landing z kliknięciem Marka; runner agenta (SPEC-001) zamiast deterministycznego generatora strony | process + runner owner |
 | 3b. Sprzedaż → referencja | na żywo, uruchomienie przed pitchem | klient Park of Poland i zamówienie `SO-2026-0042` w seedzie; strona „Realizacje” + „Zaufali nam” na `main` repo landing z fikcyjnym browarem jako pierwszą referencją; ręczny PR #7 z wpisem Park of Poland otwarty jako fallback; fixture scrape'u | intake z `sales.order.updated`, researcher z `web_fetch`, runner (SPEC-006 Fazy 2–3) | jak wyżej |
 | 5. Co dalej | slajd | — | slajd | demo owner |
 
-Na `main` tego repo są specki, `demo_fixtures`, `task_tools` i `tasks` (tablica z delegowaniem); `factory` dochodzi razem ze sceną 3 na tablicy.
+Na `main` tego repo są specki, `demo_fixtures`, `task_tools` i `task_delegation` (tablica z delegowaniem); `factory` dochodzi razem ze sceną 3 na tablicy.
 PR #8 (kolegi) to spec wykonania i dostawy: wymaga jednego kliknięcia człowieka „Approve merge
 and deploy” przy każdym merge'u, co pasuje do decyzji „klik Marka” poniżej.
 

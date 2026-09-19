@@ -40,7 +40,7 @@ describe('product ↔ task link', () => {
 describe('openProductTask', () => {
   it('creates the DEMO task and delegates it to Factory as the project owner', async () => {
     const result = await openProductTask(container(), scope, product)
-    expect(execute.mock.calls.map(([id]) => id)).toEqual(['staff.timesheets.tasks.create', 'tasks.task.delegate'])
+    expect(execute.mock.calls.map(([id]) => id)).toEqual(['staff.timesheets.tasks.create', 'task_delegation.task.delegate'])
     expect(execute.mock.calls[0]![1].input).toMatchObject({ ...scope, timeProjectId: 'project-1', title: 'Opublikuj stronę produktu ZWM-1500' })
     expect(execute.mock.calls[1]![1].input).toEqual({ taskId: 'task-1', agentUserId: 'agent-1' })
     expect(execute.mock.calls[1]![1].ctx.auth.sub).toBe('owner-1')
@@ -54,7 +54,7 @@ describe('openProductTask', () => {
     ]
     execute.mockRejectedValueOnce(new CrudHttpError(409, { code: 'already_delegated', error: 'x' }))
     const result = await openProductTask(container(), scope, product)
-    expect(execute.mock.calls.map(([id]) => id)).toEqual(['tasks.task.delegate'])
+    expect(execute.mock.calls.map(([id]) => id)).toEqual(['task_delegation.task.delegate'])
     expect(result).toEqual({ status: 'already_delegated', taskId: 'task-9', created: false, delegationId: null })
   })
 

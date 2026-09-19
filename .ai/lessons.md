@@ -28,4 +28,4 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 
 ### debugging
 
-- [Keep cross-module runtime registries on globalThis, and verify them in the built app](lessons/module-state-must-survive-bundle-duplication.md) — area:debugging,testing; module:tasks; topic:generated-files,command-transactions,di
+- [Keep cross-module runtime registries on globalThis, and verify them in the built app](lessons/module-state-must-survive-bundle-duplication.md) — area:debugging,testing; module:task_delegation; topic:generated-files,command-transactions,di

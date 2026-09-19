@@ -77,7 +77,7 @@ SF-01 through SF-10 finish the current delegation slice. SF-11 through SF-21 imp
 
 ### SF-06: DEMO fixture setup
 
-- Ownership: `src/modules/tasks/setup.ts` and a small seed helper/tests. Coordinate edits with SF-07, which also consumes setup hooks.
+- Ownership: `src/modules/task_delegation/setup.ts` and a small seed helper/tests. Coordinate edits with SF-07, which also consumes setup hooks.
 - Add the specified Internal customer, staff member for the seeded administrator, DEMO project and seven factory columns using supported public commands/services. No private Staff ORM write shortcuts.
 - Acceptance: repeated setup does not duplicate data; fixtures are scoped; the board is usable; existing tenant configuration and explicit operator choices are preserved. Keep demo data in example setup and distinguish it from workflow command enablement.
 
@@ -94,7 +94,7 @@ SF-01 through SF-10 finish the current delegation slice. SF-11 through SF-21 imp
 
 ### SF-09: API and UI acceptance
 
-- First rerun `corepack yarn test:integration:ephemeral TC-TASKS-001 --no-reuse-env`; the existing test only covers unauthenticated endpoint rejection and has never executed.
+- First rerun `corepack yarn test:integration:ephemeral TC-TASK-DELEGATION-001 --no-reuse-env`; the existing test only covers unauthenticated endpoint rejection and has never executed.
 - Add authenticated API fixtures for scope/ACL, allowed/denied project access, unavailable orchestrator, stale versions, delegate/undelegate and milestone refusal. Explore the live UI before writing selectors.
 - Exercise drawer delegation, board movement and rejected drag, terminal assignee close, event-driven badge refresh, organization switch races, loading/error states, safe links and keyboard/a11y behavior. Include the two AI read tools with database-backed scope tests.
 - Acceptance: isolated runner evidence, cleanup and screenshots for the affected UI, with no dependency on shared seeded user records.

@@ -16,8 +16,8 @@ The isolated integration attempt failed during build on test mock typings before
 - [Tasks specification](../specs/SPEC-002-2026-09-18-tasks-module.md): authoritative behavior and phase status.
 - [Verification](task-delegation-verification.md): commands and coverage limits.
 - [Staff prerequisite](staff-transaction-patches.md): paired source/runtime patches and provenance.
-- `src/modules/tasks/`: commands, API, widgets, subscribers, entities and tests.
-- `src/modules/tasks/migrations/Migration20260919101406_tasks.ts`: current initial migration; do not restore the superseded migration.
+- `src/modules/task_delegation/`: commands, API, widgets, subscribers, entities and tests.
+- `src/modules/task_delegation/migrations/Migration20260919121846_task_delegation.ts`: current initial migration; do not restore the superseded migration.
 
 ## 4. Commands
 
@@ -30,7 +30,7 @@ corepack yarn install --immutable --mode=skip-build
 node scripts/verify-staff-transaction-patches.mjs
 corepack yarn generate
 corepack yarn typecheck
-corepack yarn jest src/modules/tasks --runInBand --watchman=false
+corepack yarn jest src/modules/task_delegation --runInBand --watchman=false
 ```
 
 Use the repository-supported Node version and complete any required native dependency setup. Configure your own local environment; no credentials are bundled. The app consumes the Staff fix through committed Yarn patches, so no unpublished Core commit is required to install it. For integration, follow the isolated runner instructions in the verification document. Do not migrate a shared or existing developer database to validate this checkpoint.

@@ -40,7 +40,7 @@ Merge/deployment, WordPress, automatic intake, autonomous delegation of decompos
 
 ## Proposed Solution
 
-Extend `tasks`, which already owns delegation and task-change records. Use its `kind=code` change record to reference the execution attempt and candidate, rather than introducing a second change-set aggregate. Package this module for installation into an existing Open Mercato instance; ship trusted infrastructure separately as a Docker Compose package. Development paths below are relative to this repository; distribution does not require shipping the full application source as a new platform fork.
+Extend `task_delegation`, which already owns delegation and task-change records. Use its `kind=code` change record to reference the execution attempt and candidate, rather than introducing a second change-set aggregate. Package this module for installation into an existing Open Mercato instance; ship trusted infrastructure separately as a Docker Compose package. Development paths below are relative to this repository; distribution does not require shipping the full application source as a new platform fork.
 
 The infrastructure package has a trusted supervisor, GitHub broker, inference gateway, preview gateway, and isolated run/build/verification environments. These are explicit privilege/process boundaries, not separate business modules. Implement shared persistence in one supervisor database and ordinary service code; avoid a generic plugin bus or new orchestration engine. A local OCI image store retains content-addressed artifacts. Docker/BuildKit access exists only in the supervisor's trusted builder boundary; never in the coding container or app.
 
@@ -81,12 +81,12 @@ Every business row has trusted `tenant_id` and `organization_id`; resolve them f
 
 | Actor | Feature and additional conditions |
 |---|---|
-| Task reader | `tasks.view`, actual task access, plus `tasks.code.view` for source diffs and code artifacts. Source visibility can disclose shared application code beyond one tenant. |
-| Delegator | `tasks.delegate`, task access, plus administrator-assigned developer enrollment for the selected target. A tenant role alone cannot authorize changes affecting the whole instance. |
+| Task reader | `task_delegation.view`, actual task access, plus `tasks.code.view` for source diffs and code artifacts. Source visibility can disclose shared application code beyond one tenant. |
+| Delegator | `task_delegation.delegate`, task access, plus administrator-assigned developer enrollment for the selected target. A tenant role alone cannot authorize changes affecting the whole instance. |
 | Instructor / resumer | `tasks.runs.control`, task access and enrollment; owner/author without this feature is insufficient. |
 | Snapshot requester | `tasks.snapshots.use` plus separately recorded source-data-owner consent for this attempt and allowed data scope. |
 | Settings operator | `tasks.infrastructure.manage` plus instance administrator enrollment. Secrets are configured externally, never returned by the settings API. |
-| Process principal | `tasks.process`, exact installed workflow grants; never inherits the initiating human's credential. |
+| Process principal | `task_delegation.process`, exact installed workflow grants; never inherits the initiating human's credential. |
 | Reviewer agent | Read-only candidate checkout and scoped inference capability; cannot alter candidate or approve deployment. |
 
 Target enrollment and the allowed tenant/org binding are maintained by the external installation administrator. Task ACL remains an additional gate. If staff or Agent Orchestrator is absent/incompatible, disable delegation with a named dependency error; preserve ordinary staff operation. A module UI guard alone does not grant host authority.
@@ -129,7 +129,7 @@ Repository execution profile proposes named commands (`install`, `generate`, `ty
 
 ### Orchestrator contract
 
-Reuse `tasks.task.delegated` and `agent_orchestrator.processes.startExecution` with `task:{taskId}:{delegationId}` idempotency. Declare only the required manual process trigger, not a second matching event trigger. Seed an owned workflow database row with `workflowDefinitionAuthoring.upsertOwnedDefinition` and exact grants; process starts must not depend on a missing initiating human. Reuse the single-option plan/decomposition approval convention and explicit non-approved outcome branches from SPEC-001.
+Reuse `task_delegation.task.delegated` and `agent_orchestrator.processes.startExecution` with `task:{taskId}:{delegationId}` idempotency. Declare only the required manual process trigger, not a second matching event trigger. Seed an owned workflow database row with `workflowDefinitionAuthoring.upsertOwnedDefinition` and exact grants; process starts must not depend on a missing initiating human. Reuse the single-option plan/decomposition approval convention and explicit non-approved outcome branches from SPEC-001.
 
 The runner request is a short acknowledged dispatch, not a long-running workflow activity. A durable supervisor outbox delivers completion only to the linked workflow wait generation. Early `409` signals retry with bounded backoff; persist outcome before signal and record acknowledgment after successful consumption. Never treat a socket timeout as proof of failure or blindly repeat a signal. Reconcile workflow step/generation and accepted event ID, otherwise mark `needs_attention`. The application adapter needs a durable inbox keyed by operation/event ID before forwarding to the core signal endpoint. Raw core signal acknowledgment alone is not an exactly-once contract. Include `receiptId` in the flat signal payload and reconcile it against persisted `SIGNAL_RECEIVED` event data after an ambiguous send. A single relay serializes each wait generation; callback and watchdog atomically compete for that wait. Matching replay returns 202, same key/different hash returns 409, and a late completion after timeout stays audit-only. Payloads contain IDs and safe result summaries because core signal events persist them.
 
@@ -238,9 +238,9 @@ Selected candidate version and base revision
 
 A source diff is a purpose-specific read-only component because `DataTable`/`CrudForm` do not render line hunks. Use standard page/buttons/dialogs and semantic tokens around it. Preview is a separate origin embedded only if frame policy permits; otherwise open an in-app browser surface. Never serve candidate JavaScript under the control application's origin or pass its session token to it. Local HTTP cookies are host-scoped, not port-scoped: a mere localhost port offset is insufficient isolation. Qualification must establish distinct loopback hostnames/origins and host-only cookies before authenticated preview is enabled, with local TLS when needed for browser security features. TLS alone does not separate same-host cookies. Keep the control app and each preview on distinct hostnames; no parent-domain cookies. Gateway session state is scoped to that preview and never forwarded to the candidate backend.
 
-All surfaces specify loading, empty, transport failure, permission denied, expired artifact, paused budget, conflict, stale candidate, recovery and success states. Preserve instruction text on errors. Shared `apiCall` helpers, guarded custom mutations and `updatedAt` headers; Cmd/Ctrl+Enter submits, Escape cancels, focus returns to trigger, status changes use non-disruptive announcements. Narrow layouts use stacked sections and scrollable diff, with keyboard file navigation and text labels. Use `tasks.*` translations and semantic tokens in light/dark modes. Task references and users are displayed by names, never typed UUIDs. No transcript or secret value appears in ordinary UI.
+All surfaces specify loading, empty, transport failure, permission denied, expired artifact, paused budget, conflict, stale candidate, recovery and success states. Preserve instruction text on errors. Shared `apiCall` helpers, guarded custom mutations and `updatedAt` headers; Cmd/Ctrl+Enter submits, Escape cancels, focus returns to trigger, status changes use non-disruptive announcements. Narrow layouts use stacked sections and scrollable diff, with keyboard file navigation and text labels. Use `task_delegation.*` translations and semantic tokens in light/dark modes. Task references and users are displayed by names, never typed UUIDs. No transcript or secret value appears in ordinary UI.
 
-Preview gateway authorizes every request, including asset/websocket handshake, against authenticated identity plus current task access and candidate validity; fail closed when authorization is unavailable. Bound open websocket reauthorization to 30 seconds and close immediately on revocation events. Preview idle means no authenticated interactive request/heartbeat for 30 minutes; health probes do not keep it alive. Sleeping preserves volumes/image and releases preview compute slots; waking queues fairly when the separate preview limit is full. Code artifacts require `tasks.code.view`; preview requires task access and `tasks.view`.
+Preview gateway authorizes every request, including asset/websocket handshake, against authenticated identity plus current task access and candidate validity; fail closed when authorization is unavailable. Bound open websocket reauthorization to 30 seconds and close immediately on revocation events. Preview idle means no authenticated interactive request/heartbeat for 30 minutes; health probes do not keep it alive. Sleeping preserves volumes/image and releases preview compute slots; waking queues fairly when the separate preview limit is full. Code artifacts require `tasks.code.view`; preview requires task access and `task_delegation.view`.
 
 ## Data Models
 
@@ -265,7 +265,7 @@ Proposed additive routes, not installed capabilities. All public methods declare
 | Method / path | Input | Result / guard | Requirement |
 |---|---|---|---|
 | GET `/api/tasks/targets?projectId=...` | scoped project, pageSize <=100 | enrolled target display names and supported profile; task/delegate access | EX-01/02 |
-| GET `/api/tasks/executions?taskId=...` | scoped task, cursor, pageSize <=100 | attempt summaries + updatedAt; `tasks.view` | EX-01, EX-06 |
+| GET `/api/tasks/executions?taskId=...` | scoped task, cursor, pageSize <=100 | attempt summaries + updatedAt; `task_delegation.view` | EX-01, EX-06 |
 | GET `/api/tasks/executions/{id}` | ID | state, candidate refs, spend, pending decision | EX-03, EX-04 |
 | POST `/api/tasks/executions/{id}/instructions` | clientRequestId, text <=16 KiB, expectedVersion | 202 instruction ID/status; control feature, optimistic lock | EX-03 |
 | POST `/api/tasks/executions/{id}/resume` | requestId, expectedVersion, mode (`continue_attempt` or `new_attempt`), confirmedSize for new attempt | 202 or budget/scope/state conflict; explicit next-attempt cap | EX-03, EX-04 |
@@ -285,7 +285,7 @@ Consent binds not only source rows but recipients and outputs: named model provi
 
 ## Events, Jobs, Notifications, and Cross-Module Flows
 
-Reuse `tasks.task.delegated` and SPEC-003 `tasks.run.progress`/`tasks.change.updated` as UI notifications. Internal new events `tasks.execution.updated` and `tasks.candidate.ready` carry IDs, scope, fence, revision, and event ID only; no instructions or secrets. Persist state first, publish through outbox afterward. DOM SSE is an invalidation signal; clients refetch authorized state after reconnect.
+Reuse `task_delegation.task.delegated` and SPEC-003 `tasks.run.progress`/`tasks.change.updated` as UI notifications. Internal new events `tasks.execution.updated` and `tasks.candidate.ready` carry IDs, scope, fence, revision, and event ID only; no instructions or secrets. Persist state first, publish through outbox afterward. DOM SSE is an invalidation signal; clients refetch authorized state after reconnect.
 
 Application adapter callbacks contain eventId/runId/fence/status/manifest digest, authenticated by the supervisor's scoped identity; derive task scope from stored binding. Watchdogs reconcile active leases, overdue waits, pool settlements and GitHub operations. Use installed queue worker contracts for application work; supervisor orchestration uses its durable operation journal, not a second business-process graph.
 

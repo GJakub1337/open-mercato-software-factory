@@ -2,8 +2,8 @@ import type { CommandBus, CommandRuntimeContext } from '@open-mercato/shared/lib
 import type { QueryEngine } from '@open-mercato/shared/lib/query/types'
 import { CrudHttpError } from '@open-mercato/shared/lib/crud/errors'
 import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
-import type { TasksDelegationService } from '../../tasks/lib/delegationService'
-import { requireTaskScope } from '../../tasks/lib/auth'
+import type { TaskDelegationService } from '../../task_delegation/lib/delegationService'
+import { requireTaskScope } from '../../task_delegation/lib/auth'
 import { GitHubApiError, pullRequestNumberFromUrl, type GitHubClient } from './github'
 
 export type ApproveResult = { taskId: string; prUrl: string; merged: true; alreadyMerged: boolean }
@@ -25,7 +25,7 @@ async function refuse(status: number, code: string, key: string, fallback: strin
  */
 export async function approveProductTask(ctx: CommandRuntimeContext, taskId: string, github: GitHubClient): Promise<ApproveResult> {
   const scope = await requireTaskScope(ctx)
-  const service = ctx.container.resolve<TasksDelegationService>('tasksDelegationService')
+  const service = ctx.container.resolve<TaskDelegationService>('taskDelegationService')
   const [item] = await service.getDelegations(ctx, [taskId])
   if (!item) throw await refuse(404, 'task_not_found', 'factory.approve.errors.notFound', 'Task not found.')
   const delegation = item.delegation

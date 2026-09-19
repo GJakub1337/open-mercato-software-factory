@@ -14,7 +14,7 @@ let assigneeUserId: string
 const github = { repo: REPO, getPullRequest, mergePullRequest } as never
 function ctx() {
   const services: Record<string, unknown> = {
-    tasksDelegationService: { getDelegations: async () => [{ taskId: 'task-1', taskUpdatedAt: 'v', delegation }] },
+    taskDelegationService: { getDelegations: async () => [{ taskId: 'task-1', taskUpdatedAt: 'v', delegation }] },
     commandBus: { execute },
     queryEngine: {
       query: async (entity: string) => {

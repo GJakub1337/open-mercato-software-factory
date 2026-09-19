@@ -19,13 +19,13 @@ import { publishProductPage, type PublishResult } from './publishProduct'
 
 const logger = createLogger('factory').child({ component: 'deliver' })
 
-/** The process tasks' start-factory subscriber starts for a delegation (SPEC-002). */
+/** The process task_delegation's start-factory subscriber starts for a delegation (SPEC-002). */
 export const FACTORY_DELIVER_PROCESS = 'factory.deliver'
 export const DELIVER_WORKFLOW_ID = 'factory.deliver_product'
 export const DELIVER_FUNCTION = 'factory.deliver_product_pr'
 export const PR_OPEN_MILESTONE = 'pr_open'
 /** The run's own principal: it may read and drive delegated tasks, nothing else. */
-export const DELIVER_GRANTED_FEATURES = ['tasks.view', 'tasks.process'] as const
+export const DELIVER_GRANTED_FEATURES = ['task_delegation.view', 'task_delegation.process'] as const
 
 /**
  * `factory.deliver_product`: a delegated DEMO task → the product's website PR (SPEC-004 scene 3).
@@ -200,7 +200,7 @@ export function createDeliverFunction(deps: DeliverDeps = defaultDeps) {
     const run = (commandId: string, stepId: string, extra: Record<string, unknown>) =>
       bus.execute(commandId, { input: { ...identity, stepId, ...extra }, ctx: actingContext(container, scope, actorUserId) })
 
-    await run('tasks.task.set_status', `${DELIVER_FUNCTION}:in_progress`, { status: 'in_progress' })
+    await run('task_delegation.task.set_status', `${DELIVER_FUNCTION}:in_progress`, { status: 'in_progress' })
     try {
       const tasks = await container.resolve<QueryEngine>('queryEngine').query<{ id: string; description: string | null }>('staff:staff_time_task', {
         fields: ['id', 'description'], filters: { id: taskId }, page: { page: 1, pageSize: 1 }, ...scope,
@@ -209,15 +209,15 @@ export function createDeliverFunction(deps: DeliverDeps = defaultDeps) {
       if (!productId) throw new Error(`${DELIVER_FUNCTION}: task ${taskId} does not link a catalog product`)
 
       const result = await withTransientRetry(() => deps.openPullRequest(em, scope, productId))
-      await run('tasks.task.link', `${DELIVER_FUNCTION}:pr`, { kind: 'pr', ref: result.prLabel, url: result.prUrl })
-      await run('tasks.task.set_status', `${DELIVER_FUNCTION}:in_review`, { status: 'in_review' })
+      await run('task_delegation.task.link', `${DELIVER_FUNCTION}:pr`, { kind: 'pr', ref: result.prLabel, url: result.prUrl })
+      await run('task_delegation.task.set_status', `${DELIVER_FUNCTION}:in_review`, { status: 'in_review' })
       logger.info('product page PR on the task', { taskId, productId, prUrl: result.prUrl, reused: result.reused })
       return result
     } catch (error) {
       // The only release on failure: with one engine attempt, this is final (see t_open_pr).
       const reason = error instanceof Error ? error.message : String(error)
       logger.error('factory delivery failed; closing the task', { taskId, error: reason })
-      await run('tasks.task.set_status', `${DELIVER_FUNCTION}:failed`, { status: 'failed', reason: reason.slice(0, 8000) })
+      await run('task_delegation.task.set_status', `${DELIVER_FUNCTION}:failed`, { status: 'failed', reason: reason.slice(0, 8000) })
         .catch((closeError: unknown) => logger.error('could not close the failed task', {
           taskId, error: closeError instanceof Error ? closeError.message : String(closeError),
         }))
