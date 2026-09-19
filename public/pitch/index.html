@@ -274,9 +274,8 @@
 
   <!-- 1 · TITLE: the problem -->
   <section class="slide title" data-title="Tytuł: problem">
-    <div class="kicker">Open Mercato HackOn #2 · Agentic Software Engineering</div>
     <h1>Firma zmienia się codziennie.<span class="line2">Jej strona — niekoniecznie.</span></h1>
-    <p class="meta"><b>Software Factory in Open Mercato</b><span>Wrocław</span><span>20.09.2026</span></p>
+    <p class="meta"><b>Open Mercato Software Factory</b><span>HackOn #2</span><span>20.09.2026</span></p>
     <aside class="notes">
       <p><em>0:00–0:05</em></p>
       <p>„Firma zmienia się codziennie. Jej strona — niekoniecznie. Pokażemy to na jednej firmie.”</p>
@@ -510,7 +509,7 @@
     const backup = slide.hasAttribute('data-backup')
     const label = backup ? `B${++backupNo}` : `${String(i + 1).padStart(2, '0')} / ${String(mainCount).padStart(2, '0')}`
     slide.insertAdjacentHTML('beforeend',
-      `<div class="foot"><span>Software Factory in Open Mercato</span><span>${label}</span></div>`)
+      `<div class="foot"><span>Open Mercato Software Factory</span><span>${label}</span></div>`)
   })
 
   document.querySelectorAll('video').forEach((video) => {
