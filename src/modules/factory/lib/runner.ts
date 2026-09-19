@@ -39,6 +39,16 @@ export class RunnerError extends Error {
 
 const MODEL_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY'] as const
 
+/**
+ * OpenCode `provider/model` for the key that is set. OpenRouter ids use its own naming
+ * (`anthropic/claude-sonnet-4.5`, with a dot).
+ */
+function defaultModel(modelEnv: Record<string, string>): string {
+  if (modelEnv.ANTHROPIC_API_KEY) return 'anthropic/claude-sonnet-4-5'
+  if (modelEnv.OPENROUTER_API_KEY) return 'openrouter/anthropic/claude-sonnet-4.5'
+  return 'openai/gpt-5'
+}
+
 export function readRunnerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): RunnerConfig {
   const modelEnv: Record<string, string> = {}
   for (const key of MODEL_KEYS) {
@@ -46,13 +56,13 @@ export function readRunnerConfigFromEnv(env: NodeJS.ProcessEnv = process.env): R
     if (value) modelEnv[key] = value
   }
   if (Object.keys(modelEnv).length === 0) {
-    throw new RunnerError('No model API key is set (ANTHROPIC_API_KEY or FACTORY_RUNNER_ANTHROPIC_API_KEY); the Developer agent cannot run.', 'setup')
+    throw new RunnerError('No model API key is set (FACTORY_RUNNER_ANTHROPIC_API_KEY, FACTORY_RUNNER_OPENROUTER_API_KEY or FACTORY_RUNNER_OPENAI_API_KEY); the Developer agent cannot run.', 'setup')
   }
   const repo = env.FACTORY_SITE_REPO?.trim() || 'jtomaszewski/hackaton-stal-zbiorniki-landing'
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new RunnerError(`FACTORY_SITE_REPO must be owner/name, got "${repo}"`, 'setup')
   return {
     image: env.FACTORY_RUNNER_IMAGE?.trim() || 'om-developer-runner:local',
-    model: env.FACTORY_RUNNER_MODEL?.trim() || 'anthropic/claude-sonnet-4-5',
+    model: env.FACTORY_RUNNER_MODEL?.trim() || defaultModel(modelEnv),
     timeoutMs: Number(env.FACTORY_RUNNER_TIMEOUT_MS) > 0 ? Number(env.FACTORY_RUNNER_TIMEOUT_MS) : 15 * 60_000,
     repo,
     baseBranch: env.FACTORY_SITE_BASE_BRANCH?.trim() || 'main',

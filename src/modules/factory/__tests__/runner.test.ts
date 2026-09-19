@@ -40,6 +40,14 @@ describe('runner helpers', () => {
     expect(() => readRunnerConfigFromEnv({} as NodeJS.ProcessEnv)).toThrow('No model API key')
     const read = readRunnerConfigFromEnv({ ANTHROPIC_API_KEY: 'a', FACTORY_GITHUB_TOKEN: 'secret' } as unknown as NodeJS.ProcessEnv)
     expect(read.modelEnv).toEqual({ ANTHROPIC_API_KEY: 'a' })
+    expect(read.model).toBe('anthropic/claude-sonnet-4-5')
+  })
+
+  it('defaults to Claude through OpenRouter when only an OpenRouter key is set', () => {
+    const read = readRunnerConfigFromEnv({ FACTORY_RUNNER_OPENROUTER_API_KEY: 'or' } as unknown as NodeJS.ProcessEnv)
+    expect(read.modelEnv).toEqual({ OPENROUTER_API_KEY: 'or' })
+    expect(read.model).toBe('openrouter/anthropic/claude-sonnet-4.5')
+    expect(readRunnerConfigFromEnv({ OPENROUTER_API_KEY: 'or', FACTORY_RUNNER_MODEL: 'openrouter/x/y' } as unknown as NodeJS.ProcessEnv).model).toBe('openrouter/x/y')
   })
 })
 

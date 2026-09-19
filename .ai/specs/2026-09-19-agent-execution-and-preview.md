@@ -354,7 +354,7 @@ Deliberate gaps, all acceptable only on the presenter's laptop:
 - no transcript view beyond the host log;
 - the agent identity stays `factory` until the D-047 rename lands.
 
-Configuration: `FACTORY_RUNNER=container` (the default is the deterministic page generator, kept as the offline fallback), `FACTORY_RUNNER_IMAGE`, `FACTORY_RUNNER_MODEL` (default `anthropic/claude-sonnet-4-5`), `FACTORY_RUNNER_TIMEOUT_MS`, and a model key in the host environment passed only to the container.
+Configuration: `FACTORY_RUNNER=container` (the default is the deterministic page generator, kept as the offline fallback), `FACTORY_RUNNER_IMAGE`, `FACTORY_RUNNER_MODEL` (default `anthropic/claude-sonnet-4-5`, or `openrouter/anthropic/claude-sonnet-4.5` when only an OpenRouter key is set), `FACTORY_RUNNER_TIMEOUT_MS`, and a model key in the host environment passed only to the container.
 
 Acceptance:
 
