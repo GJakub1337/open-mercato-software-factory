@@ -15,6 +15,7 @@ type AiAssistantShellIntegrationProps = {
 }
 
 const AiAssistantIntegrationFallback: AiAssistantIntegrationComponent = ({ children }) => <>{children}</>
+const AI_ASSISTANT_VISIBILITY_KEY = 'om:ai-assistant:visibility'
 
 export function AiAssistantShellIntegration({
   tenantId,
@@ -22,6 +23,13 @@ export function AiAssistantShellIntegration({
   children,
 }: AiAssistantShellIntegrationProps) {
   const [IntegrationComponent, setIntegrationComponent] = React.useState<AiAssistantIntegrationComponent | null>(null)
+
+  React.useEffect(() => {
+    if (window.localStorage.getItem(AI_ASSISTANT_VISIBILITY_KEY) !== null) return
+    const visibility = { enabled: true }
+    window.localStorage.setItem(AI_ASSISTANT_VISIBILITY_KEY, JSON.stringify(visibility))
+    window.dispatchEvent(new CustomEvent('om:ai-assistant-visibility-change', { detail: visibility }))
+  }, [])
 
   React.useEffect(() => {
     let cancelled = false
