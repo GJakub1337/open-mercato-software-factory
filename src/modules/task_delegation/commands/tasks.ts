@@ -1,22 +1,22 @@
-import { LockMode } from '@mikro-orm/core'
 import type { EntityManager } from '@mikro-orm/postgresql'
 import { z } from 'zod'
-import { registerCommand, afterCommandCommit, extractUndoPayload, type CommandBus, type CommandHandler, type CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
+import { registerCommand, extractUndoPayload, type CommandBus, type CommandHandler, type CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
 import { CrudHttpError, isUniqueViolation } from '@open-mercato/shared/lib/crud/errors'
 import { enforceCommandOptimisticLock } from '@open-mercato/shared/lib/crud/optimistic-lock-command'
 import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
 import { findOneWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import type { QueryEngine } from '@open-mercato/shared/lib/query/types'
-import type { StaffTimeTaskMutationService, TimeTrackingAccessResolver } from '@open-mercato/core/modules/staff/di'
+import type { TimeTrackingAccessResolver } from '@open-mercato/core/modules/staff/di'
 import { User } from '@open-mercato/core/modules/auth/data/entities'
 import { AgentPrincipal, ProcessDefinition, ProcessInstance } from '@open-mercato/enterprise/modules/agent_orchestrator/data/entities'
 import { TaskDelegation, TaskProcessWrite, type TaskDelegationLinkKind } from '../data/entities'
 import { delegateSchema, undelegateSchema } from '../data/validators'
 import { emitTaskDelegationEvent } from '../events'
-import { requireFeature, readTaskAssignmentGraceDays } from '../lib/auth'
+import { requireFeature, readTaskAssignmentGraceDays, type TaskScope } from '../lib/auth'
 import { hasReachedMilestone, isAllowedProcessTransition, mapProcessStatus, type DelegationOutcome, type ProcessTaskStatus } from '../lib/transitionPolicy'
-import { authorizeInternalTaskTransition, rememberCreatedTaskColumn } from '../lib/columnContext'
+import { authorizeInternalTaskTransition, rememberCreatedTaskColumn, revokeInternalTaskTransition } from '../lib/columnContext'
 import { requireProcessAuthority } from '../lib/processAuthority'
+import { readTaskSnapshot } from '../lib/taskSnapshot'
 import type {
   CreateFollowupInput,
   CreateFollowupResult,
@@ -41,9 +41,12 @@ type StatusRow = { id: string; slug: string }
 type TeamMemberRow = { id: string; user_id: string | null }
 type DelegateUndoPayload = { taskId: string; delegationId: string }
 
-function emFor(ctx: CommandRuntimeContext): EntityManager {
-  if (!ctx.transactionalEm) throw new Error('[internal] Tasks command requires a managed transaction')
-  return ctx.transactionalEm
+// Staff 0.8.0 commits each of its commands on its own, so a tasks command is a sequence of
+// separately committed writes ordered to be safe on failure: claim the delegation first, move the
+// staff task second, and undo the claim if the move fails. A crash in between leaves a delegation
+// without a run, which the board shows as stalled and the user clears with "Remove delegate".
+function forkEm(ctx: CommandRuntimeContext): EntityManager {
+  return (ctx.container.resolve('em') as EntityManager).fork()
 }
 
 async function taskError(status: number, code: string, key: string, fallback: string, body?: Record<string, unknown>): Promise<CrudHttpError> {
@@ -51,16 +54,12 @@ async function taskError(status: number, code: string, key: string, fallback: st
   return new CrudHttpError(status, { code, error: translate(key, fallback), ...body })
 }
 
-function staffService(ctx: CommandRuntimeContext): StaffTimeTaskMutationService {
-  return ctx.container.resolve<StaffTimeTaskMutationService>('staffTimeTaskMutationService')
-}
-
-async function requireProjectAccess(ctx: CommandRuntimeContext, projectId: string): Promise<void> {
+async function requireProjectAccess(ctx: CommandRuntimeContext, em: EntityManager, projectId: string): Promise<void> {
   const scope = await requireFeature(ctx, 'task_delegation.delegate')
   const resolver = ctx.container.resolve<TimeTrackingAccessResolver>('timeTrackingAccessResolver')
   const canManageAll = await ctx.container.resolve<{ userHasAllFeatures(id: string, features: string[], scope: { tenantId: string; organizationId: string }): Promise<boolean> }>('rbacService')
     .userHasAllFeatures(scope.userId, ['staff.timesheets.projects.manage'], scope)
-  const access = await resolver.resolveProjectAccess({ em: emFor(ctx), tenantId: scope.tenantId, organizationId: scope.organizationId, userId: scope.userId, canManageAll, assignmentGraceDays: await readTaskAssignmentGraceDays(ctx, scope.tenantId) })
+  const access = await resolver.resolveProjectAccess({ em, tenantId: scope.tenantId, organizationId: scope.organizationId, userId: scope.userId, canManageAll, assignmentGraceDays: await readTaskAssignmentGraceDays(ctx, scope.tenantId) })
   if (!access.canManageAll && !access.projectIds.includes(projectId)) {
     throw await taskError(403, 'project_forbidden', 'task_delegation.errors.projectForbidden', 'Task project access is required.')
   }
@@ -83,7 +82,7 @@ async function ensureFactoryColumns(ctx: CommandRuntimeContext, projectId: strin
       ctx,
     })
     ids.set(column.slug, created.result.taskStatusId)
-    rememberCreatedTaskColumn(ctx, created.result.taskStatusId, column.slug)
+    rememberCreatedTaskColumn(ctx.auth, created.result.taskStatusId, column.slug)
   }
   return ids
 }
@@ -120,23 +119,29 @@ async function withExpectedVersion<T>(ctx: CommandRuntimeContext, updatedAt: str
 }
 
 async function runInternalStaffStatus(ctx: CommandRuntimeContext, taskId: string, status: StatusRow): Promise<void> {
-  authorizeInternalTaskTransition(ctx, taskId, status.slug)
-  await runStaffStatus(ctx, taskId, status.id)
+  authorizeInternalTaskTransition(ctx.auth, taskId, status.slug)
+  try {
+    await runStaffStatus(ctx, taskId, status.id)
+  } finally {
+    revokeInternalTaskTransition(ctx.auth, taskId)
+  }
 }
 
+type ProcessWriteIdentity = { taskId: string; processInstanceId: string; stepId: string }
+
 async function processReplay<TResult>(
-  ctx: CommandRuntimeContext,
-  identity: { taskId: string; processInstanceId: string; stepId: string },
+  em: EntityManager,
+  scope: TaskScope,
+  identity: ProcessWriteIdentity,
   commandId: string,
 ): Promise<TResult | null> {
-  const scope = await requireFeature(ctx, 'task_delegation.process')
-  const existing = await emFor(ctx).findOne(TaskProcessWrite, {
+  const existing = await em.findOne(TaskProcessWrite, {
     tenantId: scope.tenantId,
     organizationId: scope.organizationId,
     taskId: identity.taskId,
     processInstanceId: identity.processInstanceId,
     stepId: identity.stepId,
-  }, { lockMode: LockMode.PESSIMISTIC_WRITE })
+  }, { refresh: true })
   if (!existing) return null
   if (existing.commandId !== commandId) {
     throw await taskError(409, 'process_write_conflict', 'task_delegation.errors.processWriteConflict', 'This workflow step already wrote the task.')
@@ -144,28 +149,32 @@ async function processReplay<TResult>(
   return existing.result as TResult
 }
 
-async function saveProcessResult(ctx: CommandRuntimeContext, identity: { taskId: string; processInstanceId: string; stepId: string }, commandId: string, result: unknown): Promise<void> {
-  const scope = await requireFeature(ctx, 'task_delegation.process')
-  emFor(ctx).persist(emFor(ctx).create(TaskProcessWrite, { tenantId: scope.tenantId, organizationId: scope.organizationId, ...identity, commandId, result }))
-  await emFor(ctx).flush()
+/**
+ * Records the step's result in the same flush as the delegation changes it made, so our own rows
+ * stay consistent. A concurrent retry of the same step loses on the unique index and replays.
+ */
+async function saveProcessResult<TResult>(ctx: CommandRuntimeContext, em: EntityManager, scope: TaskScope, identity: ProcessWriteIdentity, commandId: string, result: TResult): Promise<TResult> {
+  em.persist(em.create(TaskProcessWrite, { tenantId: scope.tenantId, organizationId: scope.organizationId, ...identity, commandId, result }))
+  try {
+    await em.flush()
+    return result
+  } catch (error) {
+    if (!isUniqueViolation(error, 'task_delegation_process_writes_step_uq')) throw error
+    const replay = await processReplay<TResult>(forkEm(ctx), scope, identity, commandId)
+    if (!replay) throw error
+    return replay
+  }
 }
 
 const delegateTaskCommand: CommandHandler<DelegateTaskInput, DelegateTaskResult> = {
   id: 'task_delegation.task.delegate',
   isUndoable: true,
-  transaction: {
-    identity: (input) => delegateSchema.parse(input).taskId,
-    lock: async (input, ctx) => { await staffService(ctx).lockTask(ctx, { taskId: delegateSchema.parse(input).taskId, includeChildren: true }) },
-    lockUndo: async (entry, ctx) => {
-      const payload = extractUndoPayload<DelegateUndoPayload>(entry)
-      if (payload?.taskId) await staffService(ctx).lockTask(ctx, { taskId: payload.taskId, includeChildren: true })
-    },
-  },
   async execute(rawInput, ctx) {
     const input = delegateSchema.parse(rawInput)
     const scope = await requireFeature(ctx, 'task_delegation.delegate')
-    const snapshot = await staffService(ctx).lockTask(ctx, { taskId: input.taskId, includeChildren: true })
-    await requireProjectAccess(ctx, snapshot.timeProjectId)
+    const em = forkEm(ctx)
+    const snapshot = await readTaskSnapshot(ctx.container.resolve<QueryEngine>('queryEngine'), scope, { taskId: input.taskId })
+    await requireProjectAccess(ctx, em, snapshot.timeProjectId)
     enforceCommandOptimisticLock({
       resourceKind: 'staff.timesheets.time_task',
       resourceId: snapshot.taskId,
@@ -177,22 +186,6 @@ const delegateTaskCommand: CommandHandler<DelegateTaskInput, DelegateTaskResult>
       && ctx.container.hasRegistration('ProcessDefinition')
       && ctx.container.hasRegistration('AgentPrincipal')
     if (!hasOrchestrator) throw await taskError(503, 'orchestrator_unavailable', 'task_delegation.errors.orchestratorUnavailable', 'The factory orchestrator is unavailable.')
-    let assigneeUserId = snapshot.assigneeUserId
-    let assigneeStaffMemberId = snapshot.assigneeStaffMemberId
-    if (!assigneeUserId || !assigneeStaffMemberId) {
-      const members = await ctx.container.resolve<QueryEngine>('queryEngine').query<TeamMemberRow>('staff:staff_team_member', {
-        fields: ['id', 'user_id'], filters: { user_id: scope.userId }, page: { page: 1, pageSize: 1 },
-        tenantId: scope.tenantId, organizationId: scope.organizationId,
-      })
-      const member = members.items[0]
-      if (!member) throw await taskError(422, 'assignee_required', 'task_delegation.errors.assigneeRequired', 'A human assignee is required before delegation.')
-      assigneeUserId = scope.userId
-      assigneeStaffMemberId = member.id
-      await ctx.container.resolve<CommandBus>('commandBus').execute('staff.timesheets.tasks.update', {
-        input: { id: snapshot.taskId, assigneeStaffMemberId }, ctx,
-      })
-    }
-    const em = emFor(ctx)
     const decryptScope = { tenantId: scope.tenantId, organizationId: scope.organizationId }
     const user = await findOneWithDecryption(em, User, { id: input.agentUserId, ...decryptScope, kind: 'agent', deletedAt: null }, {}, decryptScope)
     const principal = await findOneWithDecryption(em, AgentPrincipal, { userId: input.agentUserId, ...decryptScope, enabled: true, deletedAt: null }, {}, decryptScope)
@@ -202,32 +195,53 @@ const delegateTaskCommand: CommandHandler<DelegateTaskInput, DelegateTaskResult>
     if (!definition || !manual || principal.agentDefinitionId !== 'factory') {
       throw await taskError(503, 'orchestrator_unavailable', 'task_delegation.errors.orchestratorUnavailable', 'The factory orchestrator is unavailable.')
     }
-    const existing = await em.findOne(TaskDelegation, { tenantId: scope.tenantId, organizationId: scope.organizationId, taskId: input.taskId, releasedAt: null }, { lockMode: LockMode.PESSIMISTIC_WRITE })
+    const existing = await em.findOne(TaskDelegation, { ...decryptScope, taskId: input.taskId, releasedAt: null })
     if (existing) throw await taskError(409, 'already_delegated', 'task_delegation.errors.alreadyDelegated', 'The task already has an active delegation.')
+
+    let assigneeUserId = snapshot.assigneeUserId
+    if (!assigneeUserId || !snapshot.assigneeStaffMemberId) {
+      const members = await ctx.container.resolve<QueryEngine>('queryEngine').query<TeamMemberRow>('staff:staff_team_member', {
+        fields: ['id', 'user_id'], filters: { user_id: scope.userId }, page: { page: 1, pageSize: 1 },
+        tenantId: scope.tenantId, organizationId: scope.organizationId,
+      })
+      const member = members.items[0]
+      if (!member) throw await taskError(422, 'assignee_required', 'task_delegation.errors.assigneeRequired', 'A human assignee is required before delegation.')
+      assigneeUserId = scope.userId
+      await ctx.container.resolve<CommandBus>('commandBus').execute('staff.timesheets.tasks.update', {
+        input: { id: snapshot.taskId, assigneeStaffMemberId: member.id }, ctx,
+      })
+    }
+
+    // Claim first: the active-delegation unique index settles concurrent delegations.
     const delegation = em.create(TaskDelegation, {
-      tenantId: scope.tenantId, organizationId: scope.organizationId, taskId: input.taskId,
+      ...decryptScope, taskId: input.taskId,
       projectId: snapshot.timeProjectId, delegateUserId: input.agentUserId, delegatedBy: scope.userId,
       assigneeUserId, links: [],
     })
     em.persist(delegation)
-    const queued = await resolveStatus(ctx, snapshot.timeProjectId, 'queued', 'task_delegation.delegate')
-    const current = await staffService(ctx).lockTask(ctx, { taskId: snapshot.taskId, includeChildren: true })
-    await withExpectedVersion(ctx, current.updatedAt, () => runInternalStaffStatus(ctx, snapshot.taskId, queued))
     try { await em.flush() } catch (error) {
       if (isUniqueViolation(error, 'task_delegations_active_task_uq')) throw await taskError(409, 'already_delegated', 'task_delegation.errors.alreadyDelegated', 'The task already has an active delegation.')
       throw error
     }
-    await afterCommandCommit(ctx, async () => {
-      await emitTaskDelegationEvent('task_delegation.task.delegated', {
-        taskId: snapshot.taskId, delegationId: delegation.id,
-        delegateUserId: delegation.delegateUserId, agentId: principal.agentDefinitionId,
-        delegatedBy: delegation.delegatedBy,
-        tenantId: scope.tenantId, organizationId: scope.organizationId,
-      }, { persistent: true, tenantId: scope.tenantId, organizationId: scope.organizationId })
-      await emitTaskDelegationEvent('task_delegation.task.changed', {
-        taskId: snapshot.taskId, tenantId: scope.tenantId, organizationId: scope.organizationId,
-      }, { persistent: true, tenantId: scope.tenantId, organizationId: scope.organizationId })
-    })
+    try {
+      const queued = await resolveStatus(ctx, snapshot.timeProjectId, 'queued', 'task_delegation.delegate')
+      const current = await readTaskSnapshot(ctx.container.resolve<QueryEngine>('queryEngine'), scope, { taskId: snapshot.taskId })
+      await withExpectedVersion(ctx, current.updatedAt, () => runInternalStaffStatus(ctx, snapshot.taskId, queued))
+    } catch (error) {
+      // The task never left Backlog, so the claim must not survive.
+      await em.nativeDelete(TaskDelegation, { ...decryptScope, id: delegation.id })
+      throw error
+    }
+
+    await emitTaskDelegationEvent('task_delegation.task.delegated', {
+      taskId: snapshot.taskId, delegationId: delegation.id,
+      delegateUserId: delegation.delegateUserId, agentId: principal.agentDefinitionId,
+      delegatedBy: delegation.delegatedBy,
+      tenantId: scope.tenantId, organizationId: scope.organizationId,
+    }, { persistent: true, tenantId: scope.tenantId, organizationId: scope.organizationId })
+    await emitTaskDelegationEvent('task_delegation.task.changed', {
+      taskId: snapshot.taskId, tenantId: scope.tenantId, organizationId: scope.organizationId,
+    }, { persistent: true, tenantId: scope.tenantId, organizationId: scope.organizationId })
     return { taskId: snapshot.taskId, delegationId: delegation.id }
   },
   async buildLog({ result, ctx }) {
@@ -242,7 +256,7 @@ const delegateTaskCommand: CommandHandler<DelegateTaskInput, DelegateTaskResult>
     const payload = extractUndoPayload<DelegateUndoPayload>(logEntry)
     if (!payload) return
     const scope = await requireFeature(ctx, 'task_delegation.delegate')
-    const active = await emFor(ctx).findOne(TaskDelegation, { tenantId: scope.tenantId, organizationId: scope.organizationId, taskId: payload.taskId, releasedAt: null })
+    const active = await forkEm(ctx).findOne(TaskDelegation, { tenantId: scope.tenantId, organizationId: scope.organizationId, taskId: payload.taskId, releasedAt: null })
     if (active?.id !== payload.delegationId) return
     await undelegateTaskCommand.execute({ taskId: payload.taskId }, ctx)
   },
@@ -250,24 +264,19 @@ const delegateTaskCommand: CommandHandler<DelegateTaskInput, DelegateTaskResult>
 
 const undelegateTaskCommand: CommandHandler<UndelegateTaskInput, UndelegateTaskResult> = {
   id: 'task_delegation.task.undelegate',
-  transaction: {
-    identity: (input) => undelegateSchema.parse(input).taskId,
-    lock: async (input, ctx) => { await staffService(ctx).lockTask(ctx, { taskId: undelegateSchema.parse(input).taskId, includeChildren: true }) },
-    lockUndo: async () => {},
-  },
   async execute(rawInput, ctx) {
     const input = undelegateSchema.parse(rawInput)
     const scope = await requireFeature(ctx, 'task_delegation.delegate')
-    const snapshot = await staffService(ctx).lockTask(ctx, { taskId: input.taskId, includeChildren: true })
-    await requireProjectAccess(ctx, snapshot.timeProjectId)
+    const em = forkEm(ctx)
+    const snapshot = await readTaskSnapshot(ctx.container.resolve<QueryEngine>('queryEngine'), scope, { taskId: input.taskId })
+    await requireProjectAccess(ctx, em, snapshot.timeProjectId)
     enforceCommandOptimisticLock({
       resourceKind: 'staff.timesheets.time_task',
       resourceId: snapshot.taskId,
       current: snapshot.updatedAt,
       request: ctx.request,
     })
-    const em = emFor(ctx)
-    const delegation = await em.findOne(TaskDelegation, { tenantId: scope.tenantId, organizationId: scope.organizationId, taskId: input.taskId, releasedAt: null }, { lockMode: LockMode.PESSIMISTIC_WRITE })
+    const delegation = await em.findOne(TaskDelegation, { tenantId: scope.tenantId, organizationId: scope.organizationId, taskId: input.taskId, releasedAt: null })
     if (!delegation) return { taskId: input.taskId, delegationId: '', released: false }
     if (delegation.processInstanceId) {
       const hasProcessInstances = typeof (ctx.container as { hasRegistration?: (name: string) => boolean }).hasRegistration === 'function'
@@ -278,20 +287,22 @@ const undelegateTaskCommand: CommandHandler<UndelegateTaskInput, UndelegateTaskR
         throw await taskError(409, 'decision_pending', 'task_delegation.errors.decisionPending', 'The task has reached the sizing decision.', { processInstanceId: process.id })
       }
     }
+    // Move the task back while the delegation still authorizes it, then release. A retry after a
+    // failed release finds the task already in Backlog and only releases.
+    if (snapshot.statusSlug !== 'backlog') {
+      const backlog = await resolveStatus(ctx, snapshot.timeProjectId, 'backlog', 'task_delegation.delegate')
+      await runInternalStaffStatus(ctx, snapshot.taskId, backlog)
+    }
     delegation.releasedAt = new Date()
     delegation.updatedAt = new Date()
-    const backlog = await resolveStatus(ctx, snapshot.timeProjectId, 'backlog', 'task_delegation.delegate')
-    await runInternalStaffStatus(ctx, snapshot.taskId, backlog)
     await em.flush()
-    await afterCommandCommit(ctx, async () => {
-      await emitTaskDelegationEvent('task_delegation.task.undelegated', {
-        taskId: snapshot.taskId, delegationId: delegation.id, processInstanceId: delegation.processInstanceId ?? null,
-        tenantId: scope.tenantId, organizationId: scope.organizationId,
-      }, { persistent: true, tenantId: scope.tenantId, organizationId: scope.organizationId })
-      await emitTaskDelegationEvent('task_delegation.task.changed', {
-        taskId: snapshot.taskId, tenantId: scope.tenantId, organizationId: scope.organizationId,
-      }, { persistent: true, tenantId: scope.tenantId, organizationId: scope.organizationId })
-    })
+    await emitTaskDelegationEvent('task_delegation.task.undelegated', {
+      taskId: snapshot.taskId, delegationId: delegation.id, processInstanceId: delegation.processInstanceId ?? null,
+      tenantId: scope.tenantId, organizationId: scope.organizationId,
+    }, { persistent: true, tenantId: scope.tenantId, organizationId: scope.organizationId })
+    await emitTaskDelegationEvent('task_delegation.task.changed', {
+      taskId: snapshot.taskId, tenantId: scope.tenantId, organizationId: scope.organizationId,
+    }, { persistent: true, tenantId: scope.tenantId, organizationId: scope.organizationId })
     return { taskId: snapshot.taskId, delegationId: delegation.id, released: true }
   },
   async buildLog({ result, ctx }) {
@@ -302,26 +313,22 @@ const undelegateTaskCommand: CommandHandler<UndelegateTaskInput, UndelegateTaskR
 
 const setStatusCommand: CommandHandler<SetTaskStatusInput, SetTaskStatusResult> = {
   id: 'task_delegation.task.set_status',
-  transaction: {
-    identity: (input) => [setStatusSchema.parse(input).taskId, input.processInstanceId, input.stepId],
-    lock: async (input, ctx) => { await staffService(ctx).lockTask(ctx, { taskId: setStatusSchema.parse(input).taskId, includeChildren: true }) },
-    lockUndo: async () => {},
-  },
   async execute(rawInput, ctx) {
     const input = setStatusSchema.parse(rawInput) as SetTaskStatusInput
-    const authority = await requireProcessAuthority(ctx, input)
-    const replay = await processReplay<SetTaskStatusResult>(ctx, input, setStatusCommand.id)
+    const em = forkEm(ctx)
+    const authority = await requireProcessAuthority(ctx, em, input)
+    const scope = await requireFeature(ctx, 'task_delegation.process')
+    const replay = await processReplay<SetTaskStatusResult>(em, scope, input, setStatusCommand.id)
     if (replay) return replay
-    const snapshot = await staffService(ctx).lockTask(ctx, { taskId: input.taskId, includeChildren: true })
     const delegation = authority.delegation
     if (!delegation) {
-      const result = { applied: false, stale: true, status: input.status } as const
-      await saveProcessResult(ctx, input, setStatusCommand.id, result)
-      return result
+      return saveProcessResult(ctx, em, scope, input, setStatusCommand.id, { applied: false, stale: true, status: input.status })
     }
+    const snapshot = await readTaskSnapshot(ctx.container.resolve<QueryEngine>('queryEngine'), scope, { taskId: input.taskId })
     const targetSlug = mapProcessStatus(input.status)
     if (!isAllowedProcessTransition(snapshot.statusSlug, targetSlug)) throw await taskError(409, 'invalid_transition', 'task_delegation.errors.invalidTransition', 'The process status transition is not allowed.')
     if ((input.status === 'rejected' || input.status === 'failed') && !input.reason?.trim()) throw await taskError(422, 'reason_required', 'task_delegation.errors.reasonRequired', 'A close reason is required.')
+    // A retried step finds the task already moved and only records the outcome.
     if (snapshot.statusSlug !== targetSlug) {
       const target = await resolveStatus(ctx, snapshot.timeProjectId, targetSlug, 'task_delegation.process')
       await runInternalStaffStatus(ctx, input.taskId, target)
@@ -332,9 +339,7 @@ const setStatusCommand: CommandHandler<SetTaskStatusInput, SetTaskStatusResult> 
       delegation.releasedAt = new Date()
       delegation.updatedAt = new Date()
     }
-    const result = { applied: true, stale: false, status: input.status }
-    await saveProcessResult(ctx, input, setStatusCommand.id, result)
-    return result
+    return saveProcessResult(ctx, em, scope, input, setStatusCommand.id, { applied: true, stale: false, status: input.status })
   },
   async buildLog({ input, result, ctx }) {
     const { translate } = await resolveTranslations()
@@ -344,41 +349,30 @@ const setStatusCommand: CommandHandler<SetTaskStatusInput, SetTaskStatusResult> 
 
 const linkTaskCommand: CommandHandler<LinkTaskInput, LinkTaskResult> = {
   id: 'task_delegation.task.link',
-  transaction: {
-    identity: (input) => [linkSchema.parse(input).taskId, input.processInstanceId, input.stepId],
-    lock: async (input, ctx) => { await staffService(ctx).lockTask(ctx, { taskId: linkSchema.parse(input).taskId }) },
-    lockUndo: async () => {},
-  },
   async execute(rawInput, ctx) {
     const input = linkSchema.parse(rawInput) as LinkTaskInput
-    const authority = await requireProcessAuthority(ctx, input)
-    const replay = await processReplay<LinkTaskResult>(ctx, input, linkTaskCommand.id)
+    const em = forkEm(ctx)
+    const authority = await requireProcessAuthority(ctx, em, input)
+    const scope = await requireFeature(ctx, 'task_delegation.process')
+    const replay = await processReplay<LinkTaskResult>(em, scope, input, linkTaskCommand.id)
     if (replay) return replay
     const delegation = authority.delegation
-    if (!delegation) {
-      const result = { applied: false, stale: true }
-      await saveProcessResult(ctx, input, linkTaskCommand.id, result)
-      return result
-    }
+    if (!delegation) return saveProcessResult(ctx, em, scope, input, linkTaskCommand.id, { applied: false, stale: true })
     delegation.processInstanceId ??= input.processInstanceId
     const duplicate = delegation.links.some((link) => link.kind === input.kind && link.ref === input.ref)
     if (!duplicate) delegation.links = [...delegation.links, { kind: input.kind as TaskDelegationLinkKind, ref: input.ref, url: input.url ?? null, addedAt: new Date().toISOString() }]
     delegation.updatedAt = new Date()
-    const result = { applied: true, stale: false }
-    await saveProcessResult(ctx, input, linkTaskCommand.id, result)
-    const scope = await requireFeature(ctx, 'task_delegation.process')
-    await afterCommandCommit(ctx, async () => {
-      await emitTaskDelegationEvent('task_delegation.task.linked', {
-        taskId: input.taskId,
-        delegationId: delegation.id,
-        processInstanceId: input.processInstanceId,
-        tenantId: scope.tenantId,
-        organizationId: scope.organizationId,
-      }, { persistent: true, tenantId: scope.tenantId, organizationId: scope.organizationId })
-      await emitTaskDelegationEvent('task_delegation.task.changed', {
-        taskId: input.taskId, tenantId: scope.tenantId, organizationId: scope.organizationId,
-      }, { persistent: true, tenantId: scope.tenantId, organizationId: scope.organizationId })
-    })
+    const result = await saveProcessResult(ctx, em, scope, input, linkTaskCommand.id, { applied: true, stale: false })
+    await emitTaskDelegationEvent('task_delegation.task.linked', {
+      taskId: input.taskId,
+      delegationId: delegation.id,
+      processInstanceId: input.processInstanceId,
+      tenantId: scope.tenantId,
+      organizationId: scope.organizationId,
+    }, { persistent: true, tenantId: scope.tenantId, organizationId: scope.organizationId })
+    await emitTaskDelegationEvent('task_delegation.task.changed', {
+      taskId: input.taskId, tenantId: scope.tenantId, organizationId: scope.organizationId,
+    }, { persistent: true, tenantId: scope.tenantId, organizationId: scope.organizationId })
     return result
   },
   async buildLog({ input, result, ctx }) {
@@ -389,25 +383,19 @@ const linkTaskCommand: CommandHandler<LinkTaskInput, LinkTaskResult> = {
 
 const createFollowupCommand: CommandHandler<CreateFollowupInput, CreateFollowupResult> = {
   id: 'task_delegation.task.create_followup',
-  transaction: {
-    identity: (input) => [followupSchema.parse(input).parentId, input.processInstanceId, input.stepId],
-    lock: async (input, ctx) => { await staffService(ctx).lockTask(ctx, { taskId: followupSchema.parse(input).parentId, includeChildren: true }) },
-    lockUndo: async () => {},
-  },
   async execute(rawInput, ctx) {
     const input = followupSchema.parse(rawInput) as CreateFollowupInput
     const identity = { taskId: input.parentId, processInstanceId: input.processInstanceId, stepId: input.stepId }
-    const authority = await requireProcessAuthority(ctx, { ...input, taskId: input.parentId })
-    const replay = await processReplay<CreateFollowupResult>(ctx, identity, createFollowupCommand.id)
+    const em = forkEm(ctx)
+    const authority = await requireProcessAuthority(ctx, em, { ...input, taskId: input.parentId })
+    const scope = await requireFeature(ctx, 'task_delegation.process')
+    const replay = await processReplay<CreateFollowupResult>(em, scope, identity, createFollowupCommand.id)
     if (replay) return replay
-    const parent = await staffService(ctx).lockTask(ctx, { taskId: input.parentId, includeChildren: true })
-    const delegation = authority.delegation
-    if (!delegation) {
-      const result = { applied: false, stale: true }
-      await saveProcessResult(ctx, identity, createFollowupCommand.id, result)
-      return result
-    }
+    if (!authority.delegation) return saveProcessResult(ctx, em, scope, identity, createFollowupCommand.id, { applied: false, stale: true })
+    const parent = await readTaskSnapshot(ctx.container.resolve<QueryEngine>('queryEngine'), scope, { taskId: input.parentId })
     const backlog = await resolveStatus(ctx, parent.timeProjectId, 'backlog', 'task_delegation.process')
+    // Not idempotent across a crash before the result is recorded: a retried step may create a
+    // second follow-up. Acceptable until staff commands can join our write.
     const result = await ctx.container.resolve<CommandBus>('commandBus').execute<Record<string, unknown>, { taskId: string }>('staff.timesheets.tasks.create', {
       input: {
         tenantId: parent.tenantId, organizationId: parent.organizationId, timeProjectId: parent.timeProjectId,
@@ -416,9 +404,7 @@ const createFollowupCommand: CommandHandler<CreateFollowupInput, CreateFollowupR
       },
       ctx,
     })
-    const response = { applied: true, stale: false, taskId: result.result.taskId }
-    await saveProcessResult(ctx, identity, createFollowupCommand.id, response)
-    return response
+    return saveProcessResult(ctx, em, scope, identity, createFollowupCommand.id, { applied: true, stale: false, taskId: result.result.taskId })
   },
   async buildLog({ input, result, ctx }) {
     const { translate } = await resolveTranslations()

@@ -5,9 +5,9 @@ Implementation paused at the owner's request on 2026-09-19. This document divide
 ## Current baseline
 
 - Application branch: `feat/task-delegation`, base commit `af0bdb3a7fbbd48d6bbb31c58d18375c60e43e80`. The implementation checkpoint is on `feat/task-delegation`. Check out that branch to obtain the candidate; see [team handoff](../development/task-delegation-handoff.md).
-- Staff prerequisite: local Core commit `d04c6520253e382986ac4a1d5aa0938e4aa601e5`, based on `ab23d45ff`, branch `fix/staff-task-transactions`. Reviewed and verified locally, not published. The application consumes it through reproducible Core/shared Yarn patches.
+- Staff prerequisite: none. The Core/shared Yarn patches were dropped; the module runs on published 0.8.0 with ordered writes (SPEC-002, "Write ordering without a shared transaction").
 - Candidate code includes entities/migration, delegation/process commands, guards, ACL/setup, API, badge/sidebar widgets, read-only AI tools, workflow command registration, start/cancel/end subscribers and tests.
-- Latest local application typecheck passed. Tasks Jest: **19 suites, 65 tests passed**. The current migration/schema verifier and installed package patch verifier passed. Most command tests use mocks; this does not prove real command/database composition.
+- Latest local application typecheck passed. Tasks Jest: **19 suites, 65 tests passed**. The current migration/schema verifier passed. Most command tests use mocks; this does not prove real command/database composition.
 - The ephemeral environment initialized successfully, but its app build failed on test mock typings before Playwright ran. Those typings were subsequently corrected and typecheck passed. **The build and smoke test have not been rerun.** No authenticated browser or end-to-end factory acceptance exists.
 - Initial application reviews found material defects. Fixes have been made, including the last assignment-grace security finding and PUT transition correction, but **the final whole candidate has not been re-reviewed**.
 - User runtime databases are unchanged. Test environments have been stopped. The owner subsequently authorized publication of this unfinished checkpoint for team takeover. No merge, deployment or paid agent run occurred.
@@ -48,9 +48,9 @@ SF-01 through SF-10 finish the current delegation slice. SF-11 through SF-21 imp
 
 ### SF-01: recover and checkpoint
 
-- Check out the published `feat/task-delegation` branch in an isolated checkout and read the repository team handoff. The application already includes the Core/shared Yarn patches. Verify the source/runtime patch manifest with `node scripts/verify-staff-transaction-patches.mjs` after immutable install.
-- Ownership: integration branch, package/lockfile, `.yarn/patches/`, `docs/development/`; no feature changes.
-- Acceptance: all intended new files, including the migration snapshot, are present; base and patch hashes are recorded; unreviewed status remains explicit. Make a local WIP checkpoint for parallel branches if useful. Do not promote to ready/merge or republish the unrelated documentation PR.
+- Check out the published `feat/task-delegation` branch in an isolated checkout and read the repository team handoff. Run an immutable install.
+- Ownership: integration branch, package/lockfile, `docs/development/`; no feature changes.
+- Acceptance: all intended new files, including the migration snapshot, are present; the base commit is recorded; unreviewed status remains explicit. Make a local WIP checkpoint for parallel branches if useful. Do not promote to ready/merge or republish the unrelated documentation PR.
 
 ### SF-02: durable orchestrator startup
 
@@ -69,11 +69,11 @@ SF-01 through SF-10 finish the current delegation slice. SF-11 through SF-21 imp
 - The workflow activity interpolation currently exposes `WorkflowInstance.id`; the three Tasks process commands require the different `ProcessInstance.id`. Expose a trusted orchestrator-owned binding, rather than a model-supplied identifier or app-side guess.
 - Acceptance: a real `UPDATE_ENTITY` activity can invoke each Tasks command with the correct execution/delegation identity; unrelated, forged, stale and cross-organization identities are rejected or produce the specified authorized stale no-op.
 
-### SF-05: real transaction acceptance
+### SF-05: real write-ordering acceptance
 
-- Ownership: Tasks command/interceptor tests, isolated PostgreSQL fixtures and minimal implementation corrections. Use the real `CommandBus`, patched managed context and Staff commands, not only mocked handlers.
-- Cover rollback of staff/delegation/receipt/audit together, effects only after commit, two concurrent delegations, replay receipts, stale headers/delegation IDs, terminal release, parent/child protection and create/update/status/delete undo. Exercise the transition matrix through both status-change and update commands, including combined-field rejection.
-- Acceptance: deterministic separate-connection tests prove commit visibility, blocked/waiting writer rechecks and rollback; no test touches a developer database. Recheck all three project-access callers against configured assignment expiry, including denial on unavailable permission/config services.
+- Ownership: Tasks command/interceptor tests, isolated PostgreSQL fixtures and minimal implementation corrections. Use the real `CommandBus` and Staff commands, not only mocked handlers.
+- Cover the delegate claim being dropped when the staff move fails, undelegate retry after a failed release, no events on failure, two concurrent delegations, replay receipts, stale headers/delegation IDs, terminal release, parent/child protection and create/update/status/delete undo. Exercise the transition matrix through both status-change and update commands, including combined-field rejection.
+- Acceptance: deterministic separate-connection tests prove the unique claim settles concurrent delegations and each failure leaves a state "Remove delegate" clears; no test touches a developer database. Recheck all three project-access callers against configured assignment expiry, including denial on unavailable permission/config services.
 
 ### SF-06: DEMO fixture setup
 
@@ -145,7 +145,7 @@ Use DL-P5. Consume SF-16 approval/journal and SF-18 artifacts; deliver provider 
 
 ### SF-20: catalog coordination, optional
 
-Use DL-P6 and SPEC-004. This is a distinct use case from editing a website's price text. First qualify the catalog-owned atomic mutation/receipt/recovery seam; the Staff fix does not supply it. Then stage price intentions, bind approval, publish the site first and apply catalog changes with source-version checks and safe compensation. Keep blocked if the required catalog seam is missing; do not hold website-only delivery hostage to it.
+Use DL-P6 and SPEC-004. This is a distinct use case from editing a website's price text. First qualify the catalog-owned atomic mutation/receipt/recovery seam; nothing in Staff supplies it. Then stage price intentions, bind approval, publish the site first and apply catalog changes with source-version checks and safe compensation. Keep blocked if the required catalog seam is missing; do not hold website-only delivery hostage to it.
 
 ### SF-21: retention and deployment portability
 
