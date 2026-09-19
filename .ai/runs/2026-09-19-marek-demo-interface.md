@@ -50,9 +50,9 @@ implementing agent delegation.
 
 ### Phase 1: Package the existing UI slice
 
-- [ ] 1.1 Preserve the accepted demo plan and SPEC-004 cross-reference
-- [ ] 1.2 Cover the assistant visibility default with a regression test
-- [ ] 1.3 Integrate the current default branch without scope expansion
+- [x] 1.1 Preserve the accepted demo plan and SPEC-004 cross-reference - d19e74a
+- [x] 1.2 Cover the assistant visibility default with a regression test - 7591339
+- [x] 1.3 Integrate the current default branch without scope expansion - 192bb99
 
 ### Phase 2: Verify and publish for review
 
