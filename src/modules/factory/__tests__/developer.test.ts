@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, jest } from '@jest/globals'
-import { buildDeveloperPrompt, deliverWithDeveloper, developerBranch } from '../lib/developer'
+import { buildDeveloperPrompt, deliverWithDeveloper, developerBranch, pullRequestSummary } from '../lib/developer'
 
 const task = { id: 'abcdef12-0000-4000-8000-000000000001', title: 'Opublikuj stronę produktu ZWM-1500', description: 'Produkt: /backend/catalog/products/x' }
 const config = { image: 'img', model: 'anthropic/x', timeoutMs: 1, repo: 'o/site', baseBranch: 'main', modelEnv: { ANTHROPIC_API_KEY: 'k' } }
@@ -39,4 +39,9 @@ it('puts the task and the catalog record in the prompt', () => {
   expect(prompt).toContain('"sku": "ZWM-1500"')
   expect(prompt).toContain('AGENTS.md')
   expect(buildDeveloperPrompt(task, null)).not.toContain('Catalog record')
+})
+
+it('keeps only the summary when the agent adds a preamble', () => {
+  expect(pullRequestSummary('Perfect! All tasks completed.\n\n## Podsumowanie\n\nDodano stronę ZWM-1500.')).toBe('Dodano stronę ZWM-1500.')
+  expect(pullRequestSummary('Dodano stronę ZWM-1500.')).toBe('Dodano stronę ZWM-1500.')
 })

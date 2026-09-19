@@ -33,8 +33,17 @@ export function buildDeveloperPrompt(task: DeveloperTask, record: CatalogRecordV
     '- Never edit .github/, vercel.json or anything outside the repository; do not add dependencies unless the task needs them.',
     '- Run `npm ci`, then `npm run lint`, `npm run typecheck` and `npm run build`. Fix what you broke until all of them pass.',
     '- Do not commit, push or create branches: leave your changes in the working tree. The platform opens the pull request.',
-    '- Finish with a summary of 2-4 sentences in Polish describing what you changed; it becomes the pull request description.',
+    '- Your final message must be only a summary of 2-4 sentences in Polish describing what you changed, with no preamble or heading; it becomes the pull request description.',
   ].join('\n')
+}
+
+/**
+ * The PR description from the agent's last message: the part under a summary heading when the
+ * model adds a preamble before it (e.g. "Perfect! … ## Podsumowanie …"), else the whole text.
+ */
+export function pullRequestSummary(text: string): string {
+  const match = /^#{1,6}\s*(?:podsumowanie|summary)\s*$/im.exec(text)
+  return (match ? text.slice(match.index + match[0].length) : text).trim()
 }
 
 export type DeveloperDeps = {
@@ -59,7 +68,7 @@ export async function deliverWithDeveloper(deps: DeveloperDeps, task: DeveloperT
   const title = task.title.length > 120 ? `${task.title.slice(0, 117)}...` : task.title
   const taskLink = deps.appUrl ? `${deps.appUrl.replace(/\/$/, '')}/backend/staff/time-tracking` : null
   const body = [
-    result.summary || 'Zmiana przygotowana przez agenta Developer.',
+    pullRequestSummary(result.summary) || 'Zmiana przygotowana przez agenta Developer.',
     '',
     '---',
     `Zadanie z tablicy Open Mercato: **${task.title}**${taskLink ? ` (${taskLink})` : ''}.`,
