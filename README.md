@@ -78,3 +78,9 @@ After changing the tool code, restart the MCP server; if it still runs old code,
 `@open-mercato/enterprise` (the Agent Orchestrator) is source-available: free for local and
 non-production use, production needs an enterprise licence. See
 [packages/enterprise](https://github.com/open-mercato/open-mercato/blob/main/packages/enterprise).
+
+## Stal-Zbiorniki demo
+
+For a repeatable isolated local company demo (fictional customers, catalog, staff,
+projects and tasks), follow [the Polish setup guide](docs/stal-zbiorniki-demo.md).
+The opt-in `demo_fixtures personalize-stal-zbiorniki` command preserves manual edits.

@@ -1,6 +1,8 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
 import type { ModuleCli } from '@open-mercato/shared/modules/registry'
 import { createRequestContainer } from '@open-mercato/shared/lib/di/container'
+import { personalizeStalZbiorniki } from './lib/personalize'
+import { personalizationScopeSchema } from './data/validators'
 import { seedStalZbiornikiDemo } from './lib/stalZbiorniki'
 import { seedTaskDelegationDemo } from '../task_delegation/lib/demoSetup'
 import { FACTORY_AGENT_DISPLAY_NAME } from '../task_delegation/lib/agentIdentity'
@@ -42,4 +44,16 @@ const seedDemo: ModuleCli = {
   },
 }
 
-export default [seedDemo]
+const personalize: ModuleCli = {
+  command: 'personalize-stal-zbiorniki',
+  async run(rest) {
+    const scope = personalizationScopeSchema.parse({
+      tenantId: readFlag(rest, 'tenant', 'tenantId'),
+      organizationId: readFlag(rest, 'org', 'organizationId'),
+    })
+    const result = await personalizeStalZbiorniki(await createRequestContainer(), scope)
+    console.log(JSON.stringify(result, null, 2))
+  },
+}
+
+export default [seedDemo, personalize]

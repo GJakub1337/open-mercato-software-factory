@@ -124,3 +124,6 @@ skills-lock.json
 
 # workspace scratch
 .context/
+
+# Isolated local demo state (credentials and verification artifacts)
+.steel-demo/
