@@ -122,3 +122,24 @@ export function resolveRunChip(delegation: TaskDelegationDto | null | undefined,
     default: return { labelKey: 'task_delegation.runState.failed', variant: 'error' }
   }
 }
+
+/**
+ * The actions this owner can actually take right now.
+ *
+ * Every write here goes through a command that requires `task_delegation.delegate`, so without it
+ * the bar explains and offers nothing. `takeOver` removes the agent, which only means something
+ * while a delegation is live: a failed or rejected run has already released it and left the task
+ * in Backlog with its person, so the button would be a no-op and is not offered.
+ */
+export function availableRunBarActions(input: {
+  state: RunBarState
+  hasActiveDelegation: boolean
+  canDelegate: boolean
+}): RunBarAction[] {
+  return runBarActions(input.state).filter((action) => {
+    if (action === 'caseload') return true
+    if (!input.canDelegate) return false
+    if (action === 'takeOver') return input.hasActiveDelegation
+    return true
+  })
+}

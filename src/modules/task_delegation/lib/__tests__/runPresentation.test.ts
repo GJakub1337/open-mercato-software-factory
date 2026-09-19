@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals'
 import type { TaskDelegationDto } from '../delegationService'
 import {
+  availableRunBarActions,
   isConfigurationFailure,
   resolveRunBarState,
   resolveRunChip,
@@ -122,5 +123,23 @@ describe('resolveRunChip', () => {
 
   it('carries no chip for a task nobody delegated', () => {
     expect(resolveRunChip(null, NOW)).toBeNull()
+  })
+})
+
+describe('availableRunBarActions', () => {
+  it('offers nothing but reading the Caseload without the delegate permission', () => {
+    expect(availableRunBarActions({ state: 'none', hasActiveDelegation: false, canDelegate: false })).toEqual([])
+    expect(availableRunBarActions({ state: 'running', hasActiveDelegation: true, canDelegate: false })).toEqual([])
+    expect(availableRunBarActions({ state: 'awaiting_decision', hasActiveDelegation: true, canDelegate: false }))
+      .toEqual(['caseload'])
+  })
+
+  it('does not offer taking over a run that already released the task', () => {
+    expect(availableRunBarActions({ state: 'failedAgent', hasActiveDelegation: false, canDelegate: true }))
+      .toEqual(['retry'])
+    expect(availableRunBarActions({ state: 'failedConfig', hasActiveDelegation: false, canDelegate: true }))
+      .toEqual([])
+    expect(availableRunBarActions({ state: 'running', hasActiveDelegation: true, canDelegate: true }))
+      .toEqual(['takeOver'])
   })
 })

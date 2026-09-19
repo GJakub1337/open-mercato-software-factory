@@ -4,7 +4,11 @@ export const injectionTable: ModuleInjectionTable = {
     { widgetId: 'task_delegation.injection.task-assigned-to-card', priority: 40 },
     { widgetId: 'task_delegation.injection.task-delegate-badge', priority: 50 },
   ],
-  'detail:staff:staff_time_task:header': { widgetId: 'task_delegation.injection.task-assigned-to', priority: 10 },
-  'detail:staff:staff_time_task:sidebar': { widgetId: 'task_delegation.injection.task-delegate-sidebar', priority: 50 },
+  // The drawer header is the whole owner-facing read of a delegated task: who owns it, then what
+  // the run is doing, then — from `factory` at priority 30 — the website change to approve.
+  'detail:staff:staff_time_task:header': [
+    { widgetId: 'task_delegation.injection.task-assigned-to', priority: 10 },
+    { widgetId: 'task_delegation.injection.task-run-status', priority: 20 },
+  ],
 }
 export default injectionTable
